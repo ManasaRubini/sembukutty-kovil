@@ -121,18 +121,19 @@ def _send_via_smtp_sync(to_email: str, member_name: str, otp: str) -> bool:
 
 async def send_otp_email(to_email: str, member_name: str, otp: str) -> bool:
     """
-    Send OTP email. Tries Resend API first (most reliable on cloud),
-    falls back to Gmail SMTP if Resend API key is not configured.
+    Send OTP email. Tries Resend API first (most reliable on cloud).
+    If Resend fails or returns testing domain error (403), automatically falls back to Gmail SMTP!
     """
     to_email = to_email.strip()
     if not to_email:
         return False
 
-    # Try Resend first (preferred — works reliably on Render Cloud)
     resend_key = getattr(settings, "RESEND_API_KEY", "").strip()
     if resend_key:
-        return await _send_via_resend(to_email, member_name, otp)
+        success = await _send_via_resend(to_email, member_name, otp)
+        if success:
+            return True
+        logger.warning("[EMAIL] Resend API failed or restricted to testing owner. Falling back to Gmail SMTP...")
 
-    # Fallback to Gmail SMTP on a background thread
-    logger.info("[EMAIL] RESEND_API_KEY not set — falling back to Gmail SMTP")
+    # Fallback to Gmail SMTP on background thread
     return await asyncio.to_thread(_send_via_smtp_sync, to_email, member_name, otp)

@@ -53,7 +53,12 @@ async def _send_via_brevo(to_email: str, member_name: str, otp: str) -> bool:
     if not api_key:
         return False
 
-    sender_email = getattr(settings, "SMTP_FROM_EMAIL", "").strip() or "sembukuttysastha.kovil@gmail.com"
+    sender_email = (
+        getattr(settings, "BREVO_SENDER_EMAIL", "").strip()
+        or getattr(settings, "SMTP_FROM_EMAIL", "").strip()
+        or "manasarubini06@gmail.com"
+    )
+
     payload = {
         "sender": {"name": "Sembukutty Sastha Kovil", "email": sender_email},
         "to": [{"email": to_email, "name": member_name or "Devotee"}],
@@ -74,6 +79,21 @@ async def _send_via_brevo(to_email: str, member_name: str, otp: str) -> bool:
             return True
         else:
             logger.error(f"[BREVO ERROR] Status {r.status_code}: {r.text}")
+            # If Brevo returned sender validation error, retry with manasarubini06@gmail.com
+            if r.status_code == 400 and "sender" in r.text.lower() and sender_email != "manasarubini06@gmail.com":
+                logger.info("[BREVO RETRY] Retrying Brevo API with default sender manasarubini06@gmail.com...")
+                payload["sender"]["email"] = "manasarubini06@gmail.com"
+                async with httpx.AsyncClient(timeout=15.0) as retry_client:
+                    r_retry = await retry_client.post(
+                        "https://api.brevo.com/v3/smtp/email",
+                        headers={"api-key": api_key, "Content-Type": "application/json"},
+                        json=payload,
+                    )
+                if r_retry.status_code in (200, 201, 202):
+                    logger.info(f"[BREVO RETRY SUCCESS] OTP email delivered to {to_email}")
+                    return True
+                else:
+                    logger.error(f"[BREVO RETRY ERROR] Status {r_retry.status_code}: {r_retry.text}")
             return False
     except Exception as e:
         logger.error(f"[BREVO EXCEPTION] {e}")

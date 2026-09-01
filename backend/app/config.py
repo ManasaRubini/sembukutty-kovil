@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # Brevo.com API (Free 300 emails/day to ANY recipient in the world without domain restrictions)
     # Sign up at https://brevo.com → API Keys → Generate new API key
     BREVO_API_KEY: str = ""
+    BREVO_SENDER_EMAIL: str = ""  # Set to the email address used to create your Brevo account
 
     # SMS Gateway
     FAST2SMS_API_KEY: str = ""

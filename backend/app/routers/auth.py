@@ -184,7 +184,7 @@ async def staff_register(req: StaffRegisterRequest, db: AsyncSession = Depends(g
         raise HTTPException(status_code=400, detail="Name and Phone Number are required")
 
     # Check duplicate phone or name
-    existing = (await db.execute(select(Staff).where(or_(Staff.name == name_clean, Staff.phone == phone_clean)))).scalar_one_or_none()
+    existing = (await db.execute(select(Staff).where(or_(Staff.name == name_clean, Staff.phone == phone_clean)))).scalars().first()
     if existing:
         if existing.is_approved:
             raise HTTPException(status_code=400, detail="A billing member with this Name or Phone is already registered.")
@@ -232,76 +232,84 @@ async def send_otp(req: SendOTPReq, db: AsyncSession = Depends(get_db)):
     """
     Send OTP Endpoint (POST /auth/send-otp)
     """
-    email_clean = req.email.strip().lower()
-    if not email_clean or "@" not in email_clean or "." not in email_clean:
-        raise HTTPException(status_code=400, detail="Invalid email address format.")
+    try:
+        email_clean = req.email.strip().lower()
+        if not email_clean or "@" not in email_clean or "." not in email_clean:
+            raise HTTPException(status_code=400, detail="Invalid email address format.")
 
-    existing_staff = (await db.execute(select(Staff).where(Staff.email == email_clean, Staff.is_active == True))).scalar_one_or_none()
-    if existing_staff and existing_staff.is_email_verified and existing_staff.is_approved:
-        raise HTTPException(status_code=400, detail="This email is already registered and verified.")
+        existing_staff = (await db.execute(select(Staff).where(Staff.email == email_clean, Staff.is_active == True))).scalars().first()
+        if existing_staff and existing_staff.is_email_verified and existing_staff.is_approved:
+            raise HTTPException(status_code=400, detail="This email is already registered and verified.")
 
-    now = datetime.utcnow()  # Use naive UTC to match PostgreSQL storage format
-    recent_otp = (await db.execute(
-        select(EmailOTPSession).where(
-            EmailOTPSession.email == email_clean,
-            EmailOTPSession.is_used == False,
-        ).order_by(desc(EmailOTPSession.created_at))
-    )).scalars().first()
+        now = datetime.utcnow()  # Use naive UTC to match PostgreSQL storage format
+        recent_otp = (await db.execute(
+            select(EmailOTPSession).where(
+                EmailOTPSession.email == email_clean,
+                EmailOTPSession.is_used == False,
+            ).order_by(desc(EmailOTPSession.created_at))
+        )).scalars().first()
 
-    if recent_otp:
-        created_naive = recent_otp.created_at.replace(tzinfo=None) if recent_otp.created_at.tzinfo else recent_otp.created_at
-        time_elapsed = (now - created_naive).total_seconds()
-        if time_elapsed < 30:
-            remaining = int(30 - time_elapsed)
-            raise HTTPException(status_code=429, detail=f"Please wait {remaining} seconds before requesting another OTP.")
-        recent_otp.is_used = True
+        if recent_otp:
+            created_naive = recent_otp.created_at.replace(tzinfo=None) if recent_otp.created_at.tzinfo else recent_otp.created_at
+            time_elapsed = (now - created_naive).total_seconds()
+            if time_elapsed < 30:
+                remaining = int(30 - time_elapsed)
+                raise HTTPException(status_code=429, detail=f"Please wait {remaining} seconds before requesting another OTP.")
+            recent_otp.is_used = True
 
-    otp_code = generate_secure_otp()
-    otp_hash = hash_secret(otp_code)
-    expires_at = now + timedelta(minutes=5)  # naive UTC, matches DB storage
+        otp_code = generate_secure_otp()
+        otp_hash = hash_secret(otp_code)
+        expires_at = now + timedelta(minutes=5)  # naive UTC, matches DB storage
 
-    otp_record = EmailOTPSession(
-        id=str(uuid.uuid4()),
-        email=email_clean,
-        otp_hash=otp_hash,
-        expires_at=expires_at,
-        created_at=now,
-        is_used=False,
-        attempt_count=0,
-    )
-    db.add(otp_record)
+        otp_record = EmailOTPSession(
+            id=str(uuid.uuid4()),
+            email=email_clean,
+            otp_hash=otp_hash,
+            expires_at=expires_at,
+            created_at=now,
+            is_used=False,
+            attempt_count=0,
+        )
+        db.add(otp_record)
 
-    if req.name or req.phone:
-        name_val = req.name.strip() if req.name else email_clean.split("@")[0]
-        phone_val = req.phone.strip() if req.phone else ""
-        if existing_staff:
-            existing_staff.verification_code = otp_code
-            existing_staff.pin_hash = hash_secret(req.pin.strip() if req.pin else "1234")
-        else:
-            new_staff = Staff(
-                id=str(uuid.uuid4()),
-                name=name_val,
-                phone=phone_val,
-                email=email_clean,
-                pin_hash=hash_secret(req.pin.strip() if req.pin else "1234"),
-                is_approved=False,
-                is_email_verified=False,
-                verification_code=otp_code,
-            )
-            db.add(new_staff)
+        if req.name or req.phone:
+            name_val = req.name.strip() if req.name else email_clean.split("@")[0]
+            phone_val = req.phone.strip() if req.phone else ""
+            if existing_staff:
+                existing_staff.name = name_val
+                existing_staff.phone = phone_val
+                existing_staff.verification_code = otp_code
+                existing_staff.pin_hash = hash_secret(req.pin.strip() if req.pin else "1234")
+            else:
+                new_staff = Staff(
+                    id=str(uuid.uuid4()),
+                    name=name_val,
+                    phone=phone_val,
+                    email=email_clean,
+                    pin_hash=hash_secret(req.pin.strip() if req.pin else "1234"),
+                    is_approved=False,
+                    is_email_verified=False,
+                    verification_code=otp_code,
+                )
+                db.add(new_staff)
 
-    await db.commit()
-    email_delivered = await send_otp_email(email_clean, req.name or "", otp_code)
+        await db.commit()
+        email_delivered = await send_otp_email(email_clean, req.name or "", otp_code)
 
-    if not email_delivered:
-        logger.warning(f"[OTP] Email delivery failed for {email_clean}. Check RESEND_API_KEY or SMTP settings in Render Dashboard.")
+        if not email_delivered:
+            logger.warning(f"[OTP] Email delivery failed for {email_clean}. Check RESEND_API_KEY or SMTP settings in Render Dashboard.")
 
-    return {
-        "message": "A 6-digit verification code has been sent to your email address. Please check your inbox and spam folder.",
-        "email": email_clean,
-        "cooldown_seconds": 30,
-        "email_delivered": email_delivered,
-    }
+        return {
+            "message": "A 6-digit verification code has been sent to your email address. Please check your inbox and spam folder.",
+            "email": email_clean,
+            "cooldown_seconds": 30,
+            "email_delivered": email_delivered,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[SEND-OTP ERROR] {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Registration request error: {str(e)}")
 
 
 @router.post("/verify-otp")

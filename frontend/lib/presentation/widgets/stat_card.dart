@@ -38,6 +38,7 @@ class StatCard extends StatelessWidget {
     }
 
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
         color: bg,
         border: Border.all(color: AppColors.line),

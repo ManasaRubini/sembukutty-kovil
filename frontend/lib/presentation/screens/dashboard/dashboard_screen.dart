@@ -75,8 +75,11 @@ class DashboardScreen extends ConsumerWidget {
                                 Expanded(child: StatCard(label: 'Donations', value: formatINR(dash.donations), variant: StatCardVariant.income)),
                               ],
                             ),
-                            const SizedBox(height: 10),
-                            StatCard(label: 'Expenses', value: formatINR(dash.expenses), variant: StatCardVariant.expense),
+                            Row(
+                              children: [
+                                Expanded(child: StatCard(label: 'Expenses', value: formatINR(dash.expenses), variant: StatCardVariant.expense)),
+                              ],
+                            ),
                           ],
                         );
                 },

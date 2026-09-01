@@ -116,43 +116,41 @@ async def get_transactions_for(
 
 
 async def compute_dashboard(db, staff_id: Optional[str] = None) -> dict:
+    """
+    Compute dashboard metrics.
+    Tax Collected, Donations, Expenses are COMBINED totals across ALL members (everyone).
+    """
     from sqlalchemy import select
     from app.models.transaction import Transaction
     opening = await get_opening(db)
-    all_staff = await get_all_staff(db)
 
     opening_bank = float(opening.bank_balance) if opening else 0.0
     opening_cash = float(opening.cash_balance) if opening else 0.0
     cash_holder_id = opening.cash_holder_staff_id if opening else None
 
-    # My transactions
-    if staff_id:
-        my_txns_result = await db.execute(
-            select(Transaction).where(Transaction.staff_id == staff_id)
-        )
-        my_txns = list(my_txns_result.scalars().all())
-    else:
-        all_txns_res = await db.execute(select(Transaction))
-        my_txns = list(all_txns_res.scalars().all())
-
-    totals = totals_for_staff(my_txns)
-
-    # My cash
-    my_cash = cash_balance_for_staff_from_txns(
-        opening_cash,
-        cash_holder_id == staff_id or cash_holder_id is None,
-        my_txns,
-    )
-
-    # All transactions for bank balance & total cash
+    # Fetch ALL transactions for combined totals across everyone
     all_txns_result = await db.execute(select(Transaction))
     all_txns = list(all_txns_result.scalars().all())
+
+    # Combined totals for EVERYONE (tax, donation, expense)
+    totals = totals_for_staff(all_txns)
+
+    # Cash in hand for current staff member
+    if staff_id:
+        my_txns = [t for t in all_txns if t.staff_id == staff_id]
+        my_cash = cash_balance_for_staff_from_txns(
+            opening_cash,
+            cash_holder_id == staff_id or cash_holder_id is None,
+            my_txns,
+        )
+    else:
+        my_cash = overall_cash_balance_from_txns(opening_cash, all_txns)
 
     bank_bal = bank_balance_from_txns(opening_bank, all_txns)
     total_cash = overall_cash_balance_from_txns(opening_cash, all_txns)
 
-    # Recent 8 transactions for this staff
-    raw_recent = sorted(my_txns, key=lambda t: (str(t.date), str(t.created_at)), reverse=True)[:8]
+    # Recent 8 transactions across all members
+    raw_recent = sorted(all_txns, key=lambda t: (str(t.date), str(t.created_at)), reverse=True)[:8]
     recent = [
         {
             "id": t.id,

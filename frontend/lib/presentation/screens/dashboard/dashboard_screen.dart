@@ -52,7 +52,7 @@ class DashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionTitle('Your account · $staffName'),
+              const SectionTitle('Temple Accounts Overview'),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth > 550;
@@ -87,7 +87,7 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(child: StatCard(label: 'Your cash in hand', value: formatINR(dash.myCash), variant: StatCardVariant.closing)),
+                  Expanded(child: StatCard(label: 'Cash in hand ($staffName)', value: formatINR(dash.myCash), variant: StatCardVariant.closing)),
                   const SizedBox(width: 10),
                   Expanded(child: StatCard(label: 'Temple bank balance', value: formatINR(dash.bankBalance), variant: StatCardVariant.neutral)),
                 ],

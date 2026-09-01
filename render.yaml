@@ -1,0 +1,20 @@
+services:
+  # FastAPI Web Service on Render (Free Tier)
+  - type: web
+    name: sembukutty-kovil-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: singapore
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: ENABLE_API_DOCS
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"

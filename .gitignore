@@ -1,0 +1,31 @@
+# Environment & Secret Files
+.env
+*.env
+backend/.env
+
+# Python Cache & Virtual Envs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+venv/
+.venv/
+env/
+backups/*.sql
+backups/*.gz
+
+# Flutter / Dart Build & Secret Files
+frontend/.dart_tool/
+frontend/.idea/
+frontend/.vscode/
+frontend/build/
+frontend/.packages
+frontend/pubspec.lock
+frontend/ios/Pods/
+frontend/android/.gradle/
+frontend/android/app/build/
+
+# OS Generated Files
+.DS_Store
+Thumbs.db

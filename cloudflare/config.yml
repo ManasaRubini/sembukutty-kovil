@@ -1,0 +1,13 @@
+# Cloudflare Named Tunnel Configuration for Temple Billing System
+# Replace <TUNNEL_ID> with your Cloudflare Tunnel ID generated from 'cloudflared tunnel create'
+
+tunnel: <TUNNEL_ID>
+credentials-file: C:\cloudflared\<TUNNEL_ID>.json
+
+ingress:
+  # Map public HTTPS domain to local FastAPI backend bound on 127.0.0.1:8000
+  - hostname: billing.example.com
+    service: http://localhost:8000
+
+  # Catch-all 404 for unmapped requests
+  - service: http_status:404

@@ -56,7 +56,7 @@ async def _send_via_brevo(to_email: str, member_name: str, otp: str) -> bool:
     sender_email = (
         getattr(settings, "BREVO_SENDER_EMAIL", "").strip()
         or getattr(settings, "SMTP_FROM_EMAIL", "").strip()
-        or "manasarubini06@gmail.com"
+        or "sembukuttysastha.kovil@gmail.com"
     )
 
     payload = {

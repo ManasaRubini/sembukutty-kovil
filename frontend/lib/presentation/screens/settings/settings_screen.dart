@@ -362,34 +362,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ],
-          const SectionTitle('API Configuration'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Backend API Base URL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _apiUrlCtrl,
-                    decoration: const InputDecoration(hintText: 'http://localhost:8000'),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      await ApiConfig.save(_apiUrlCtrl.text.trim());
-                      if (!mounted) return;
-                      messenger.showSnackBar(const SnackBar(content: Text('API URL updated')));
-                    },
-                    child: const Text('Save URL'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
           const SectionTitle('Session & Account'),
           Card(
             child: Padding(

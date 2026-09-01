@@ -47,8 +47,41 @@ If you did not request this, you can safely ignore this email.
 """
 
 
+async def _send_via_brevo(to_email: str, member_name: str, otp: str) -> bool:
+    """Send OTP email via Brevo API (Free 300 emails/day to ANY recipient without domain restriction)."""
+    api_key = getattr(settings, "BREVO_API_KEY", "").strip()
+    if not api_key:
+        return False
+
+    sender_email = getattr(settings, "SMTP_FROM_EMAIL", "").strip() or "sembukuttysastha.kovil@gmail.com"
+    payload = {
+        "sender": {"name": "Sembukutty Sastha Kovil", "email": sender_email},
+        "to": [{"email": to_email, "name": member_name or "Devotee"}],
+        "subject": f"🔑 {otp} — Your Sembukutty Sastha Kovil Verification Code",
+        "htmlContent": _html_body(member_name, otp),
+        "textContent": _text_body(member_name, otp),
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            r = await client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": api_key, "Content-Type": "application/json"},
+                json=payload,
+            )
+        if r.status_code in (200, 201, 202):
+            logger.info(f"[BREVO SUCCESS] OTP email delivered to {to_email}")
+            return True
+        else:
+            logger.error(f"[BREVO ERROR] Status {r.status_code}: {r.text}")
+            return False
+    except Exception as e:
+        logger.error(f"[BREVO EXCEPTION] {e}")
+        return False
+
+
 async def _send_via_resend(to_email: str, member_name: str, otp: str) -> bool:
-    """Send OTP email via Resend.com REST API (most reliable on cloud servers)."""
+    """Send OTP email via Resend.com REST API."""
     api_key = getattr(settings, "RESEND_API_KEY", "").strip()
     resend_from = getattr(settings, "RESEND_FROM_EMAIL", "").strip() or "onboarding@resend.dev"
 
@@ -121,19 +154,28 @@ def _send_via_smtp_sync(to_email: str, member_name: str, otp: str) -> bool:
 
 async def send_otp_email(to_email: str, member_name: str, otp: str) -> bool:
     """
-    Send OTP email. Tries Resend API first (most reliable on cloud).
-    If Resend fails or returns testing domain error (403), automatically falls back to Gmail SMTP!
+    Send OTP email.
+    1. Tries Brevo API first (300 free emails/day to ANY recipient in the world).
+    2. Tries Resend API next.
+    3. Tries Gmail SMTP fallback.
     """
     to_email = to_email.strip()
     if not to_email:
         return False
 
+    # 1. Try Brevo API first if configured
+    brevo_key = getattr(settings, "BREVO_API_KEY", "").strip()
+    if brevo_key:
+        success = await _send_via_brevo(to_email, member_name, otp)
+        if success:
+            return True
+
+    # 2. Try Resend API if configured
     resend_key = getattr(settings, "RESEND_API_KEY", "").strip()
     if resend_key:
         success = await _send_via_resend(to_email, member_name, otp)
         if success:
             return True
-        logger.warning("[EMAIL] Resend API failed or restricted to testing owner. Falling back to Gmail SMTP...")
 
-    # Fallback to Gmail SMTP on background thread
+    # 3. Fallback to Gmail SMTP on background thread
     return await asyncio.to_thread(_send_via_smtp_sync, to_email, member_name, otp)

@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = "onboarding@resend.dev"  # Use this until you verify your domain
 
+    # Brevo.com API (Free 300 emails/day to ANY recipient in the world without domain restrictions)
+    # Sign up at https://brevo.com → API Keys → Generate new API key
+    BREVO_API_KEY: str = ""
+
     # SMS Gateway
     FAST2SMS_API_KEY: str = ""
 

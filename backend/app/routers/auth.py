@@ -143,19 +143,22 @@ async def admin_login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     password_clean = req.password.strip()
 
     # Check DB admin user first
-    res = await db.execute(select(AdminUser).where(AdminUser.username == username_clean))
-    admin_user = res.scalar_one_or_none()
+    try:
+        res = await db.execute(select(AdminUser).where(AdminUser.username == username_clean))
+        admin_user = res.scalar_one_or_none()
 
-    if admin_user:
-        if not verify_secret(password_clean, admin_user.password_hash):
-            raise HTTPException(status_code=401, detail="Invalid admin credentials")
-        token = create_access_token({"sub": admin_user.username, "role": "admin"})
-        return TokenOut(
-            access_token=token,
-            token_type="bearer",
-            role="admin",
-            staff_name="Administrator",
-        )
+        if admin_user:
+            if not verify_secret(password_clean, admin_user.password_hash):
+                raise HTTPException(status_code=401, detail="Invalid admin credentials")
+            token = create_access_token({"sub": admin_user.username, "role": "admin"})
+            return TokenOut(
+                access_token=token,
+                token_type="bearer",
+                role="admin",
+                staff_name="Administrator",
+            )
+    except Exception:
+        pass
 
     # Fallback to config setting if no admin in DB yet
     if req.username == settings.ADMIN_USERNAME and req.password == settings.ADMIN_PASSWORD:

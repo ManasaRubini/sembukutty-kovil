@@ -6,8 +6,8 @@ class AppConstants {
   static const kCurrentStaffId = 'current_staff_id';
   static const kAuthToken = 'auth_token';
 
-  // Default API URL — set to live Cloudflare Tunnel
-  static const defaultApiUrl = 'https://isle-spaces-project-disabilities.trycloudflare.com';
+  // Default API URL — 24/7 Render Cloud Server
+  static const defaultApiUrl = 'https://sembukutty-kovil-api.onrender.com';
 
   // Max active billing staff
   static const maxStaff = 5;
@@ -24,7 +24,15 @@ class ApiConfig {
 
   static Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
-    _baseUrl = prefs.getString(AppConstants.kApiBaseUrl) ?? AppConstants.defaultApiUrl;
+    final savedUrl = prefs.getString(AppConstants.kApiBaseUrl);
+    
+    // Auto-clear old expired trycloudflare / localhost URLs from phone memory
+    if (savedUrl == null || savedUrl.contains('trycloudflare.com') || savedUrl.contains('localhost') || savedUrl.contains('127.0.0.1')) {
+      _baseUrl = AppConstants.defaultApiUrl;
+      await prefs.setString(AppConstants.kApiBaseUrl, AppConstants.defaultApiUrl);
+    } else {
+      _baseUrl = savedUrl;
+    }
   }
 
   static Future<void> save(String url) async {

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models.transaction import Transaction
 from app.models.staff import Staff
+from app.models.member import Member
 from app.schemas import TransactionCreate, TransactionOut
 from app.services.serial import next_serial
 from app.routers.auth import require_admin, get_current_user
@@ -48,6 +49,39 @@ async def create_transaction(body: TransactionCreate, db: AsyncSession = Depends
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
 
+    # Auto-save or update Devotee record in members database table
+    member_id_final = body.member_id
+    if body.member_name and body.member_name.strip() and body.member_name.strip() != "Walk-in / Unspecified":
+        m_name = body.member_name.strip()
+        m_phone = (body.member_phone or "").strip()
+        m_address = (body.address or "").strip()
+
+        m_existing = None
+        if member_id_final:
+            m_res = await db.execute(select(Member).where(Member.id == member_id_final))
+            m_existing = m_res.scalar_one_or_none()
+
+        if not m_existing:
+            m_res = await db.execute(select(Member).where(Member.name == m_name))
+            m_existing = m_res.scalars().first()
+
+        if m_existing:
+            if m_phone and not m_existing.phone:
+                m_existing.phone = m_phone
+            if m_address and not m_existing.address:
+                m_existing.address = m_address
+            member_id_final = m_existing.id
+        else:
+            new_member = Member(
+                id=str(uuid.uuid4()),
+                name=m_name,
+                phone=m_phone,
+                address=m_address,
+            )
+            db.add(new_member)
+            await db.flush()
+            member_id_final = new_member.id
+
     # Determine serial type
     if body.type == "expense":
         serial_type = "voucher"
@@ -68,7 +102,7 @@ async def create_transaction(body: TransactionCreate, db: AsyncSession = Depends
         date=txn_date,
         amount=body.amount,
         mode=body.mode,
-        member_id=body.member_id,
+        member_id=member_id_final,
         member_name=body.member_name or "",
         member_phone=body.member_phone or "",
         address=body.address or "",

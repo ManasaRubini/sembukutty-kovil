@@ -1,13 +1,17 @@
+import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import select, func
 
 from app.config import settings
-from app.database import engine, Base
+from app.database import engine, Base, AsyncSessionLocal
 import app.models  # Ensures all ORM models are registered with Base
+from app.models.member import Member
+from seed.members_data import MEMBERS_DATA
 
 from app.middleware.security_headers import SecurityHeadersMiddleware, production_exception_handler
 from app.routers import (
@@ -29,8 +33,26 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        
+        # Auto-seed Kovil Devotees into database if members table is empty
+        async with AsyncSessionLocal() as session:
+            count = (await session.execute(select(func.count(Member.id)))).scalar() or 0
+            if count == 0:
+                print(f"[*] Seeding {len(MEMBERS_DATA)} Kovil Devotees into database...")
+                for m in MEMBERS_DATA:
+                    name = m.get("name", "").strip()
+                    if not name:
+                        continue
+                    session.add(Member(
+                        id=str(uuid.uuid4()),
+                        name=name,
+                        phone=m.get("phone", "").strip(),
+                        address=m.get("address", "").strip(),
+                    ))
+                await session.commit()
+                print("[*] Kovil Devotees auto-seeded successfully!")
     except Exception as e:
-        print(f"[!] Warning: Table creation on startup exception: {e}")
+        print(f"[!] Warning: Startup seed/table initialization: {e}")
     yield
 
 

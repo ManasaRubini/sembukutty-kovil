@@ -21,33 +21,6 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int _currentTab = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkOpeningBalance();
-    });
-  }
-
-  Future<void> _checkOpeningBalance() async {
-    final staffId = ref.read(currentStaffIdProvider);
-    if (staffId == null) return;
-
-    try {
-      final ob = await ref.read(openingBalanceServiceProvider).get();
-      if (ob == null && mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => OpeningBalanceDialog(
-            currentStaffId: staffId,
-            onSaved: () => Navigator.of(context).pop(),
-          ),
-        );
-      }
-    } catch (_) {}
-  }
-
   void _switchStaff() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const StaffSelectionScreen()),

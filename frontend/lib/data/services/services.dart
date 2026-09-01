@@ -317,6 +317,19 @@ class MemberService {
       throw ApiException.fromDioError(e);
     }
   }
+
+  Future<MemberModel> update(String id, {String? name, String? phone, String? address}) async {
+    try {
+      final r = await _client.put('/api/members/$id', data: {
+        if (name != null) 'name': name,
+        if (phone != null) 'phone': phone,
+        if (address != null) 'address': address,
+      });
+      return MemberModel.fromJson(r.data);
+    } on DioException catch (e) {
+      throw ApiException.fromDioError(e);
+    }
+  }
 }
 
 // ─── Opening Balance Service ──────────────────────────────────────────────────

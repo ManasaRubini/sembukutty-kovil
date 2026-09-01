@@ -130,13 +130,22 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                               Text(_selectedMember!.phone, style: const TextStyle(fontSize: 12, color: AppColors.inkSoft)),
                           ],
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: () {
-                            setState(() {
-                              _selectedMember = null;
-                            });
-                          },
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 18, color: AppColors.maroon700),
+                              tooltip: 'Edit Devotee Details',
+                              onPressed: () => _showEditDevoteeDialog(_selectedMember!),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedMember = null;
+                                });
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -239,12 +248,96 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => SuccessScreen(txn: txn, staffId: widget.staffId)),
+        MaterialPageRoute(
+          builder: (_) => SuccessScreen(txn: txn, staffId: widget.staffId),
+        ),
       );
     } catch (e) {
       setState(() => _isLoading = false);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
+  }
+
+  Future<void> _showEditDevoteeDialog(MemberModel member) async {
+    final nameCtrl = TextEditingController(text: member.name);
+    final phoneCtrl = TextEditingController(text: member.phone);
+    final addressCtrl = TextEditingController(text: member.address);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note, color: AppColors.maroon700),
+            SizedBox(width: 8),
+            Text('Edit Devotee Details', style: TextStyle(fontFamily: 'Fraunces', fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Devotee Name *', prefixIcon: Icon(Icons.person_outline, size: 20)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Phone Number', prefixIcon: Icon(Icons.phone_outlined, size: 20)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: addressCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Address', prefixIcon: Icon(Icons.home_outlined, size: 20)),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.maroon700),
+            onPressed: () async {
+              final newName = nameCtrl.text.trim();
+              if (newName.isEmpty) return;
+              try {
+                final updated = await ref.read(memberServiceProvider).update(
+                  member.id,
+                  name: newName,
+                  phone: phoneCtrl.text.trim(),
+                  address: addressCtrl.text.trim(),
+                );
+                setState(() {
+                  _selectedMember = updated;
+                  _addressCtrl.text = updated.address;
+                  _phoneCtrl.text = updated.phone;
+                });
+                if (mounted) {
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Devotee details updated successfully!')),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to update devotee: $e')),
+                );
+              }
+            },
+            child: const Text('Save Updates', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }

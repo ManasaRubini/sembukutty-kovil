@@ -2,8 +2,15 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
+# Auto-normalize DATABASE_URL to use asynchronous psycopg (v3) driver
+db_url = settings.DATABASE_URL
+if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+elif db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
+
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    db_url,
     echo=False,
     pool_pre_ping=True,
 )

@@ -25,12 +25,18 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "kovil2024"
 
-    # SMTP Email Credentials
+    # SMTP Email Credentials (Gmail fallback)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = "sembukuttysastha.kovil@gmail.com"
     SMTP_PASSWORD: str = "dgajdotfifhtbrrg"
     SMTP_FROM_EMAIL: str = "sembukuttysastha.kovil@gmail.com"
+
+    # Resend.com API (preferred — set RESEND_API_KEY in Render Dashboard)
+    # Free plan: 3,000 emails/month, no credit card required
+    # Sign up at https://resend.com → Developers → API Keys → Create API Key
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"  # Use this until you verify your domain
 
     # SMS Gateway
     FAST2SMS_API_KEY: str = ""

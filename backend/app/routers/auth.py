@@ -293,20 +293,15 @@ async def send_otp(req: SendOTPReq, db: AsyncSession = Depends(get_db)):
     await db.commit()
     email_delivered = await send_otp_email(email_clean, req.name or "", otp_code)
 
-    response: dict = {
-        "message": "Verification OTP sent successfully" if email_delivered else "OTP generated (email delivery failed — use the code shown below)",
+    if not email_delivered:
+        logger.warning(f"[OTP] Email delivery failed for {email_clean}. Check RESEND_API_KEY or SMTP settings in Render Dashboard.")
+
+    return {
+        "message": "A 6-digit verification code has been sent to your email address. Please check your inbox and spam folder.",
         "email": email_clean,
         "cooldown_seconds": 30,
         "email_delivered": email_delivered,
     }
-
-    # If email delivery failed, include the OTP directly in the response
-    # so the user can still complete registration without needing their inbox.
-    if not email_delivered:
-        response["otp_preview"] = otp_code
-        response["hint"] = f"Your verification code is: {otp_code}"
-
-    return response
 
 
 @router.post("/verify-otp")

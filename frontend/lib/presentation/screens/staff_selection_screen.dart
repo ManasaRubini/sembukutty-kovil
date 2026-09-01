@@ -577,50 +577,12 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                               emailCtrl.text.trim(),
                               style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: AppColors.maroon700),
                             ),
-                            const SizedBox(height: 12),
-                            // Show OTP directly on screen if email delivery failed
-                            if (otpPreview != null) ...[
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF8E1),
-                                  border: Border.all(color: const Color(0xFFFFB300), width: 1.5),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Column(
-                                  children: [
-                                    const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.warning_amber_rounded, color: Color(0xFFE65100), size: 16),
-                                        SizedBox(width: 6),
-                                        Text(
-                                          'Email not received — use this code:',
-                                          style: TextStyle(fontSize: 11.5, color: Color(0xFFE65100), fontWeight: FontWeight.w600),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      otpPreview!,
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 10,
-                                        color: Color(0xFF5D4037),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text(
-                                      'Enter this code in the box below',
-                                      style: TextStyle(fontSize: 11, color: Color(0xFF795548)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Please check your inbox and spam folder.',
+                              style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                            ),
+                            const SizedBox(height: 16),
                             TextField(
                               controller: otpCtrl,
                               keyboardType: TextInputType.number,

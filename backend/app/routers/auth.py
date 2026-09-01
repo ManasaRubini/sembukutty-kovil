@@ -370,7 +370,7 @@ async def resend_otp(req: ResendOTPReq, db: AsyncSession = Depends(get_db)):
     if not email_clean or "@" not in email_clean or "." not in email_clean:
         raise HTTPException(status_code=400, detail="Invalid email address format.")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     recent_otp = (await db.execute(
         select(EmailOTPSession).where(
             EmailOTPSession.email == email_clean,
@@ -379,7 +379,8 @@ async def resend_otp(req: ResendOTPReq, db: AsyncSession = Depends(get_db)):
     )).scalars().first()
 
     if recent_otp:
-        time_elapsed = (now - recent_otp.created_at).total_seconds()
+        created_naive = recent_otp.created_at.replace(tzinfo=None) if recent_otp.created_at.tzinfo else recent_otp.created_at
+        time_elapsed = (now - created_naive).total_seconds()
         if time_elapsed < 30:
             remaining = int(30 - time_elapsed)
             raise HTTPException(status_code=429, detail=f"Please wait {remaining} seconds before requesting another OTP.")
@@ -444,7 +445,7 @@ async def forgot_password_send_otp(req: ForgotPasswordSendOTPReq, db: AsyncSessi
             raise HTTPException(status_code=404, detail="No member account found with this email address.")
         target_name = staff_res.name
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     recent_otp = (await db.execute(
         select(EmailOTPSession).where(
             EmailOTPSession.email == email_clean,
@@ -453,7 +454,8 @@ async def forgot_password_send_otp(req: ForgotPasswordSendOTPReq, db: AsyncSessi
     )).scalars().first()
 
     if recent_otp:
-        time_elapsed = (now - recent_otp.created_at).total_seconds()
+        created_naive = recent_otp.created_at.replace(tzinfo=None) if recent_otp.created_at.tzinfo else recent_otp.created_at
+        time_elapsed = (now - created_naive).total_seconds()
         if time_elapsed < 30:
             remaining = int(30 - time_elapsed)
             raise HTTPException(status_code=429, detail=f"Please wait {remaining} seconds before requesting another OTP.")
@@ -495,7 +497,7 @@ async def forgot_password_verify_otp(req: ForgotPasswordVerifyOTPReq, db: AsyncS
     if not email_clean or not submitted_otp:
         raise HTTPException(status_code=400, detail="Email and OTP code are required.")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     otp_record = (await db.execute(
         select(EmailOTPSession).where(
             EmailOTPSession.email == email_clean,
@@ -506,7 +508,8 @@ async def forgot_password_verify_otp(req: ForgotPasswordVerifyOTPReq, db: AsyncS
     if not otp_record:
         return {"message": "Invalid verification code", "verified": False}
 
-    if now > otp_record.expires_at:
+    expires_naive = otp_record.expires_at.replace(tzinfo=None) if otp_record.expires_at and otp_record.expires_at.tzinfo else otp_record.expires_at
+    if expires_naive and now > expires_naive:
         otp_record.is_used = True
         await db.commit()
         return {"message": "Verification code has expired", "verified": False}

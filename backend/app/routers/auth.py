@@ -1,6 +1,7 @@
 import secrets
 import random
 import uuid
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,6 +9,8 @@ from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, func, desc
+
+logger = logging.getLogger("auth_router")
 
 from app.config import settings
 from app.database import get_db

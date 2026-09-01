@@ -262,7 +262,7 @@ async def import_backup(payload: dict, db: AsyncSession = Depends(get_db)):
             date=DateType.fromisoformat(t["date"]),
             amount=t["amount"], mode=t.get("mode"),
             member_id=t.get("member_id"), member_name=t.get("member_name", ""),
-            member_phone=t.get("member_phone", ""), address=t.address,
+            member_phone=t.get("member_phone", ""), address=t.get("address", ""),
             purpose=t.get("purpose", ""), remarks=t.get("remarks", ""),
             paid_to=t.get("paid_to", ""), direction=t.get("direction"),
             serial_number=t.get("serial_number"),

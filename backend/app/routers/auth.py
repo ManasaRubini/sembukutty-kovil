@@ -240,7 +240,7 @@ async def send_otp(req: SendOTPReq, db: AsyncSession = Depends(get_db)):
     if existing_staff and existing_staff.is_email_verified and existing_staff.is_approved:
         raise HTTPException(status_code=400, detail="This email is already registered and verified.")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()  # Use naive UTC to match PostgreSQL storage format
     recent_otp = (await db.execute(
         select(EmailOTPSession).where(
             EmailOTPSession.email == email_clean,
@@ -249,7 +249,8 @@ async def send_otp(req: SendOTPReq, db: AsyncSession = Depends(get_db)):
     )).scalars().first()
 
     if recent_otp:
-        time_elapsed = (now - recent_otp.created_at).total_seconds()
+        created_naive = recent_otp.created_at.replace(tzinfo=None) if recent_otp.created_at.tzinfo else recent_otp.created_at
+        time_elapsed = (now - created_naive).total_seconds()
         if time_elapsed < 30:
             remaining = int(30 - time_elapsed)
             raise HTTPException(status_code=429, detail=f"Please wait {remaining} seconds before requesting another OTP.")
@@ -257,7 +258,7 @@ async def send_otp(req: SendOTPReq, db: AsyncSession = Depends(get_db)):
 
     otp_code = generate_secure_otp()
     otp_hash = hash_secret(otp_code)
-    expires_at = now + timedelta(minutes=5)
+    expires_at = now + timedelta(minutes=5)  # naive UTC, matches DB storage
 
     otp_record = EmailOTPSession(
         id=str(uuid.uuid4()),
@@ -310,7 +311,7 @@ async def verify_otp(req: VerifyOTPReq, db: AsyncSession = Depends(get_db)):
     if not email_clean or not submitted_otp:
         raise HTTPException(status_code=400, detail="Email and OTP are required.")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()  # naive UTC to match PostgreSQL storage
     otp_record = (await db.execute(
         select(EmailOTPSession).where(
             EmailOTPSession.email == email_clean,
@@ -321,7 +322,9 @@ async def verify_otp(req: VerifyOTPReq, db: AsyncSession = Depends(get_db)):
     if not otp_record:
         return {"message": "Invalid verification code", "verified": False}
 
-    if now > otp_record.expires_at:
+    # Normalize expires_at to naive UTC for safe comparison
+    expires_naive = otp_record.expires_at.replace(tzinfo=None) if otp_record.expires_at and otp_record.expires_at.tzinfo else otp_record.expires_at
+    if expires_naive and now > expires_naive:
         otp_record.is_used = True
         await db.commit()
         return {"message": "Verification code has expired", "verified": False}

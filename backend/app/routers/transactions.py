@@ -9,6 +9,7 @@ from app.models.transaction import Transaction
 from app.models.staff import Staff
 from app.schemas import TransactionCreate, TransactionOut
 from app.services.serial import next_serial
+from app.routers.auth import require_admin, get_current_user
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -119,7 +120,11 @@ async def get_transaction(txn_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/{txn_id}")
-async def delete_transaction(txn_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_transaction(
+    txn_id: str,
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(require_admin),
+):
     result = await db.execute(select(Transaction).where(Transaction.id == txn_id))
     txn = result.scalar_one_or_none()
     if not txn:

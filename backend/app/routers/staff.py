@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models.staff import Staff
 from app.schemas import StaffCreate, StaffUpdate, StaffOut, ApproveStaffRequest
-from app.routers.auth import hash_secret, require_admin
+from app.routers.auth import hash_secret, require_admin, get_current_user
 
 router = APIRouter(prefix="/api/staff", tags=["staff"])
 
@@ -118,7 +118,12 @@ async def create_staff(
 
 
 @router.put("/{staff_id}", response_model=StaffOut)
-async def update_staff(staff_id: str, body: StaffUpdate, db: AsyncSession = Depends(get_db)):
+async def update_staff(
+    staff_id: str,
+    body: StaffUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     result = await db.execute(select(Staff).where(Staff.id == staff_id))
     staff = result.scalar_one_or_none()
     if not staff:

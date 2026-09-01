@@ -7,17 +7,18 @@ class Settings(BaseSettings):
     APP_ENV: str = "production"  # development | production
     ENABLE_API_DOCS: bool = False  # Disable /docs in production by default
 
-    # Database Settings (MySQL Default, Postgres fallback)
-    DATABASE_URL: str = "mysql+aiomysql://temple_app:KovilApp%402026@127.0.0.1:3306/temple_db"
-    
+    # Database — set DATABASE_URL env var in Render Dashboard
+    # Falls back to local SQLite for safe local development
+    DATABASE_URL: str = "sqlite+aiosqlite:///./sembukutty_kovil_local.db"
+
     # JWT Security Settings
     JWT_SECRET_KEY: str = "3f8a91b2c4e5d6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # CORS & Security Settings
-    CORS_ORIGINS: str = "https://billing.example.com"
+    # CORS — allow all origins so Flutter mobile app (Android/iOS/Chrome) can reach Render Cloud API
+    CORS_ORIGINS: str = "*"
     CLOUDFLARE_TUNNEL_NAME: str = "temple-billing-tunnel"
 
     # Default Admin Credentials

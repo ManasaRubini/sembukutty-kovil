@@ -1,6 +1,7 @@
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException
 import logging
 
 logger = logging.getLogger("temple_app_security")
@@ -22,7 +23,14 @@ async def production_exception_handler(request: Request, exc: Exception):
     """
     Sanitizes production HTTP 500 exceptions so internal stack traces, DB credentials,
     and system paths are never leaked to external users.
+
+    IMPORTANT: HTTPExceptions (401, 403, 404, 422, etc.) are re-raised so FastAPI handles
+    them correctly — only genuine unhandled 500 errors are sanitized here.
     """
+    # Re-raise HTTPExceptions so FastAPI processes them with correct status codes
+    if isinstance(exc, HTTPException):
+        raise exc
+
     logger.error(f"Unhandled Internal Error on {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,

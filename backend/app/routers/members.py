@@ -7,6 +7,7 @@ from sqlalchemy import select, or_
 from app.database import get_db
 from app.models.member import Member
 from app.schemas import MemberCreate, MemberUpdate, MemberOut
+from app.routers.auth import get_current_user
 import openpyxl
 
 router = APIRouter(prefix="/api/members", tags=["members"])
@@ -111,7 +112,11 @@ async def get_member(member_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", response_model=MemberOut)
-async def create_member(body: MemberCreate, db: AsyncSession = Depends(get_db)):
+async def create_member(
+    body: MemberCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     member = Member(id=str(uuid.uuid4()), **body.model_dump())
     db.add(member)
     await db.commit()
@@ -120,7 +125,12 @@ async def create_member(body: MemberCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{member_id}", response_model=MemberOut)
-async def update_member(member_id: str, body: MemberUpdate, db: AsyncSession = Depends(get_db)):
+async def update_member(
+    member_id: str,
+    body: MemberUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     result = await db.execute(select(Member).where(Member.id == member_id))
     member = result.scalar_one_or_none()
     if not member:

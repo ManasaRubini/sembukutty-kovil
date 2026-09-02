@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../data/models/models.dart';
 import '../../../providers/providers.dart';
 import '../../widgets/common_widgets.dart';
 import '../../widgets/stat_card.dart';
@@ -149,6 +151,12 @@ class DashboardScreen extends ConsumerWidget {
                         label: 'Add New\nDevotee',
                         topBorderColor: AppColors.maroon700,
                         onTap: () => _showAddDevoteeDialog(context, ref),
+                      ),
+                      QuickActionCard(
+                        emoji: '🗑️',
+                        label: 'Delete\nDevotee',
+                        topBorderColor: AppColors.expense,
+                        onTap: () => _showDeleteDevoteeDialog(context, ref),
                       ),
                     ],
                   );
@@ -382,6 +390,166 @@ class DashboardScreen extends ConsumerWidget {
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.check, size: 18),
                 label: const Text('Save Devotee'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showDeleteDevoteeDialog(BuildContext context, WidgetRef ref) {
+    MemberModel? selectedMember;
+    final searchCtrl = TextEditingController();
+    bool isDeleting = false;
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.person_remove_outlined, color: AppColors.expense),
+                SizedBox(width: 8),
+                Text('Delete Devotee', style: TextStyle(fontFamily: 'Fraunces', fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (errorText != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.expenseBg, borderRadius: BorderRadius.circular(8)),
+                        child: Text(errorText!, style: const TextStyle(color: AppColors.expense, fontSize: 12.5)),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    const Text('Search and select a devotee to remove from Kovil records:', style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft)),
+                    const SizedBox(height: 14),
+
+                    TypeAheadField<MemberModel>(
+                      controller: searchCtrl,
+                      builder: (context, controller, focusNode) {
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Search Devotee Name or Phone',
+                            hintText: 'Type devotee name...',
+                            prefixIcon: Icon(Icons.search, size: 20),
+                          ),
+                        );
+                      },
+                      suggestionsCallback: (pattern) async {
+                        if (pattern.trim().isEmpty) return [];
+                        return await ref.read(memberServiceProvider).search(pattern.trim());
+                      },
+                      itemBuilder: (context, suggestion) {
+                        return ListTile(
+                          dense: true,
+                          title: Text(suggestion.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                            [
+                              if (suggestion.phone.isNotEmpty) suggestion.phone,
+                              if (suggestion.address.isNotEmpty) suggestion.address,
+                            ].join(' · '),
+                            style: const TextStyle(fontSize: 11.5, color: AppColors.inkSoft),
+                          ),
+                        );
+                      },
+                      onSelected: (suggestion) {
+                        setDialogState(() {
+                          selectedMember = suggestion;
+                          searchCtrl.text = suggestion.name;
+                          errorText = null;
+                        });
+                      },
+                    ),
+
+                    if (selectedMember != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.expenseBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.expense.withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: AppColors.expense, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    selectedMember!.name,
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.expense),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (selectedMember!.phone.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text('Phone: ${selectedMember!.phone}', style: const TextStyle(fontSize: 12.5, color: AppColors.ink)),
+                              ),
+                            if (selectedMember!.address.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text('Address: ${selectedMember!.address}', style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft)),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: (selectedMember == null || isDeleting)
+                    ? null
+                    : () async {
+                        setDialogState(() {
+                          isDeleting = true;
+                          errorText = null;
+                        });
+
+                        try {
+                          await ref.read(memberServiceProvider).delete(selectedMember!.id);
+                          if (!ctx.mounted) return;
+                          Navigator.of(dialogCtx).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Devotee "${selectedMember!.name}" deleted successfully.')),
+                          );
+                        } catch (e) {
+                          setDialogState(() {
+                            isDeleting = false;
+                            errorText = e.toString();
+                          });
+                        }
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.expense, foregroundColor: Colors.white),
+                icon: isDeleting
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.delete_forever, size: 18),
+                label: const Text('Delete Devotee'),
               ),
             ],
           );

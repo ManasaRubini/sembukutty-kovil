@@ -331,6 +331,14 @@ class MemberService {
       throw ApiException.fromDioError(e);
     }
   }
+
+  Future<void> delete(String id) async {
+    try {
+      await _client.delete('/api/members/$id');
+    } on DioException catch (e) {
+      throw ApiException.fromDioError(e);
+    }
+  }
 }
 
 // ─── Opening Balance Service ──────────────────────────────────────────────────

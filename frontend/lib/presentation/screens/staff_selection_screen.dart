@@ -132,7 +132,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
       final defaultStaffId = activeStaff.isNotEmpty ? activeStaff.first.id : 'admin';
 
       await prefs.setString(AppConstants.kCurrentStaffId, defaultStaffId);
-      ref.read(currentStaffIdProvider.notifier).state = StaffId;
+      ref.read(currentStaffIdProvider.notifier).state = defaultStaffId;
       ref.read(userRoleProvider.notifier).state = 'admin';
 
       if (!mounted) return;

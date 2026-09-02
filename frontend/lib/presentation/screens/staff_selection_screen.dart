@@ -49,8 +49,9 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
       ref.read(currentStaffIdProvider.notifier).state = staffId;
       ref.read(userRoleProvider.notifier).state = userRole;
 
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
       );
     }
   }
@@ -94,8 +95,9 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
       ref.read(userRoleProvider.notifier).state = 'staff';
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
       );
     } catch (e) {
       setState(() {
@@ -136,8 +138,9 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
       ref.read(userRoleProvider.notifier).state = 'admin';
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
       );
     } catch (e) {
       setState(() {

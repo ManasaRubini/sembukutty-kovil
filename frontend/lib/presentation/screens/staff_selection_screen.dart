@@ -232,7 +232,13 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                               emailCtrl.text.trim(),
                               style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: AppColors.maroon700),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 6),
+                            const Text(
+                              '💡 Note: If email delivery is delayed, enter master code 123456 to verify instantly.',
+                              style: TextStyle(fontSize: 11.5, color: AppColors.maroon700, fontWeight: FontWeight.w600),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
                             TextField(
                               controller: otpCtrl,
                               keyboardType: TextInputType.number,
@@ -523,7 +529,8 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Please check your inbox and spam folder.',
+                              'Please check your inbox and spam folder.\n💡 Note: If email delivery is delayed, enter master code 123456 to verify instantly.',
+                              textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
                             ),
                             const SizedBox(height: 16),

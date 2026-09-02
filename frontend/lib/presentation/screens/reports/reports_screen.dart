@@ -254,7 +254,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     dense: true,
                     title: Text(r['member_name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text('${formatDate(r['date'])} · ${r['mode'] == "cash" ? "Cash" : "Bank"}'),
-                    trailing: Text(formatINR((r['amount'] as num).toDouble()), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.income)),
+                    trailing: Text(formatINR(_asDouble(r['amount'])), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.income)),
                   );
                 },
               ),
@@ -265,12 +265,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _Line('Total Tax collected', formatINR((_reportData!['total_tax'] as num).toDouble())),
-                  _Line('Total Donations collected', formatINR((_reportData!['total_donations'] as num).toDouble())),
-                  _Line('— via Cash', formatINR((_reportData!['total_cash'] as num).toDouble()), isSub: true),
-                  _Line('— via Bank transfer', formatINR((_reportData!['total_bank'] as num).toDouble()), isSub: true),
+                  _Line('Total Tax collected', formatINR(_asDouble(_reportData!['total_tax']))),
+                  _Line('Total Donations collected', formatINR(_asDouble(_reportData!['total_donations']))),
+                  _Line('— via Cash', formatINR(_asDouble(_reportData!['total_cash'])), isSub: true),
+                  _Line('— via Bank transfer', formatINR(_asDouble(_reportData!['total_bank'])), isSub: true),
                   const Divider(),
-                  _Line('Total Collections', formatINR((_reportData!['total_collections'] as num).toDouble()), isTotal: true),
+                  _Line('Total Collections', formatINR(_asDouble(_reportData!['total_collections'])), isTotal: true),
                 ],
               ),
             ),
@@ -296,7 +296,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     dense: true,
                     title: Text(r['remarks'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text('${formatDate(r['date'])} · Paid to: ${r['paid_to'] ?? "—"}'),
-                    trailing: Text(formatINR((r['amount'] as num).toDouble()), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.expense)),
+                    trailing: Text(formatINR(_asDouble(r['amount'])), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.expense)),
                   );
                 },
               ),
@@ -307,10 +307,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _Line('— from Cash', formatINR((_reportData!['total_cash'] as num).toDouble()), isSub: true),
-                  _Line('— from Bank', formatINR((_reportData!['total_bank'] as num).toDouble()), isSub: true),
+                  _Line('— from Cash', formatINR(_asDouble(_reportData!['total_cash'])), isSub: true),
+                  _Line('— from Bank', formatINR(_asDouble(_reportData!['total_bank'])), isSub: true),
                   const Divider(),
-                  _Line('Total Expenses', formatINR((_reportData!['total_expenses'] as num).toDouble()), isTotal: true, color: AppColors.expense),
+                  _Line('Total Expenses', formatINR(_asDouble(_reportData!['total_expenses'])), isTotal: true, color: AppColors.expense),
                 ],
               ),
             ),
@@ -329,13 +329,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SectionTitle('Bank'),
-                  _Line('Opening bank balance', formatINR((_reportData!['opening_bank'] as num).toDouble())),
-                  _Line('Total Bank Balance', formatINR((_reportData!['bank_balance'] as num).toDouble()), isTotal: true),
+                  _Line('Opening bank balance', formatINR(_asDouble(_reportData!['opening_bank']))),
+                  _Line('Total Bank Balance', formatINR(_asDouble(_reportData!['bank_balance'])), isTotal: true),
                   const SectionTitle('Cash'),
-                  _Line('Opening cash balance', formatINR((_reportData!['opening_cash'] as num).toDouble())),
-                  _Line('Total Cash Balance', formatINR((_reportData!['total_cash'] as num).toDouble()), isTotal: true),
+                  _Line('Opening cash balance', formatINR(_asDouble(_reportData!['opening_cash']))),
+                  _Line('Total Cash Balance', formatINR(_asDouble(_reportData!['total_cash'])), isTotal: true),
                   const SectionTitle('Grand Total'),
-                  _Line('Bank + Cash', formatINR((_reportData!['grand_total'] as num).toDouble()), isTotal: true),
+                  _Line('Bank + Cash', formatINR(_asDouble(_reportData!['grand_total'])), isTotal: true),
                 ],
               ),
             ),
@@ -352,7 +352,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   final s = perStaff[i];
                   return ListTile(
                     title: Text(s['staff_name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
-                    trailing: Text(formatINR((s['cash_balance'] as num).toDouble()), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: Text(formatINR(_asDouble(s['cash_balance'])), style: const TextStyle(fontWeight: FontWeight.bold)),
                   );
                 },
               ),
@@ -361,6 +361,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ],
       );
     }
+  }
+
+  double _asDouble(dynamic val) {
+    if (val == null) return 0.0;
+    if (val is num) return val.toDouble();
+    return double.tryParse(val.toString()) ?? 0.0;
   }
 }
 

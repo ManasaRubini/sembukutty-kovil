@@ -27,23 +27,25 @@ class TempleHeader extends StatelessWidget {
           colors: [AppColors.maroon900, AppColors.maroon700],
         ),
       ),
-      child: Stack(
-        children: [
-          // Gopuram watermark icon in top right
-          Positioned(
-            right: -10,
-            top: -20,
-            child: Opacity(
-              opacity: 0.15,
-              child: CustomPaint(
-                size: const Size(160, 160),
-                painter: _GopuramPainter(),
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            // Gopuram watermark icon in top right
+            Positioned(
+              right: -10,
+              top: -20,
+              child: Opacity(
+                opacity: 0.15,
+                child: CustomPaint(
+                  size: const Size(160, 160),
+                  painter: _GopuramPainter(),
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Column(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -158,7 +160,8 @@ class TempleHeader extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 

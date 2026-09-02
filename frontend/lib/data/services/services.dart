@@ -166,10 +166,11 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> staffLogin(String staffId, String pin) async {
+  Future<Map<String, dynamic>> staffLogin(String usernameOrId, String pin) async {
     try {
       final r = await _client.post('/api/auth/staff-login', data: {
-        'staff_id': staffId,
+        'identifier': usernameOrId,
+        'staff_id': usernameOrId,
         'pin': pin,
       });
       return r.data as Map<String, dynamic>;

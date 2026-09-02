@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/providers.dart';
 import '../widgets/temple_header.dart';
@@ -21,7 +23,16 @@ class MainShell extends ConsumerStatefulWidget {
 class _MainShellState extends ConsumerState<MainShell> {
   int _currentTab = 0;
 
-  void _switchStaff() {
+  Future<void> _switchStaff() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConstants.kIsLoggedIn, false);
+    await prefs.remove(AppConstants.kCurrentStaffId);
+    await prefs.remove(AppConstants.kUserRole);
+    await prefs.remove('auth_token');
+
+    ref.read(currentStaffIdProvider.notifier).state = null;
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const StaffSelectionScreen()),
     );

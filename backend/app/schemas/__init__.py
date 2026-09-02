@@ -257,7 +257,9 @@ class LoginRequest(BaseModel):
 
 
 class StaffLoginRequest(BaseModel):
-    staff_id: str
+    staff_id: Optional[str] = None
+    username: Optional[str] = None
+    identifier: Optional[str] = None
     pin: str
 
 

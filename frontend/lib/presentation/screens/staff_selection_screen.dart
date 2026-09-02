@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/models.dart';
-import '../../data/services/offline_storage.dart';
 import '../../providers/providers.dart';
 import '../widgets/temple_header.dart';
 import 'main_shell.dart';
@@ -19,158 +18,142 @@ class StaffSelectionScreen extends ConsumerStatefulWidget {
 }
 
 class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
-  int _selectedTab = 0; // 0 = Staff Login, 1 = Admin Login
+  int _selectedTab = 0; // 0 = Billing Member Login, 1 = Admin Login
+
+  // Member login controllers
+  final _memberIdCtrl = TextEditingController();
+  final _memberPinCtrl = TextEditingController();
+  bool _isMemberLoading = false;
+  String? _memberError;
 
   // Admin login controllers
   final _adminUserCtrl = TextEditingController(text: 'admin');
   final _adminPassCtrl = TextEditingController(text: 'kovil2024');
-
   bool _isAdminLoading = false;
   String? _adminError;
 
   @override
+  void initState() {
+    super.initState();
+    _checkAutoLogin();
+  }
+
+  /// Auto-login persistence: If user is already logged in, enter app directly
+  Future<void> _checkAutoLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool(AppConstants.kIsLoggedIn) ?? false;
+    final staffId = prefs.getString(AppConstants.kCurrentStaffId);
+    final userRole = prefs.getString(AppConstants.kUserRole) ?? 'staff';
+
+    if (isLoggedIn && staffId != null && staffId.isNotEmpty && mounted) {
+      ref.read(currentStaffIdProvider.notifier).state = staffId;
+      ref.read(userRoleProvider.notifier).state = userRole;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    }
+  }
+
+  @override
   void dispose() {
+    _memberIdCtrl.dispose();
+    _memberPinCtrl.dispose();
     _adminUserCtrl.dispose();
     _adminPassCtrl.dispose();
     super.dispose();
   }
 
-  // ─── PIN Dialog ─────────────────────────────────────────────────────────────
-  Future<void> _onStaffCardTap(StaffModel staff) async {
-    final pinCtrl = TextEditingController();
-    String? pinError;
-    bool isSubmitting = false;
+  // ─── Member Login Handler ──────────────────────────────────────────────────
+  Future<void> _handleMemberLogin() async {
+    final identifier = _memberIdCtrl.text.trim();
+    final pin = _memberPinCtrl.text.trim();
 
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.maroon700,
-                  child: Text(
-                    staff.initial,
-                    style: const TextStyle(color: AppColors.gold100, fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Login as ${staff.name}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Enter your 4-digit PIN to continue:', style: TextStyle(fontSize: 13, color: AppColors.inkSoft)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: pinCtrl,
-                  keyboardType: TextInputType.number,
-                  obscureText: true,
-                  maxLength: 6,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'PIN (Default: 1234)',
-                    errorText: pinError,
-                    prefixIcon: const Icon(Icons.lock_outline, size: 20),
-                    counterText: '',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.of(dialogCtx).pop();
-                      _showForgotDialog(staff: staff, accountType: 'member');
-                    },
-                    child: const Text(
-                      'Forgot PIN? Reset via Email OTP',
-                      style: TextStyle(fontSize: 12, color: AppColors.maroon700),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogCtx).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () async {
-                        final pin = pinCtrl.text.trim();
-                        if (pin.isEmpty) {
-                          setDialogState(() => pinError = 'Please enter your PIN');
-                          return;
-                        }
-                        setDialogState(() {
-                          isSubmitting = true;
-                          pinError = null;
-                        });
+    if (identifier.isEmpty || pin.isEmpty) {
+      setState(() => _memberError = 'Username / Phone / Email and PIN are required');
+      return;
+    }
 
-                        final nav = Navigator.of(context);
-                        try {
-                          final res = await ref.read(authServiceProvider).staffLogin(staff.id, pin);
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString(AppConstants.kCurrentStaffId, staff.id);
-                          await prefs.setString('auth_token', res['access_token'] ?? '');
-                          await prefs.setString('user_role', 'staff');
+    setState(() {
+      _isMemberLoading = true;
+      _memberError = null;
+    });
 
-                          ref.read(currentStaffIdProvider.notifier).state = staff.id;
-                          ref.read(userRoleProvider.notifier).state = 'staff';
+    try {
+      final res = await ref.read(authServiceProvider).staffLogin(identifier, pin);
+      final staffId = res['staff_id'] as String? ?? identifier;
+      final token = res['access_token'] as String? ?? '';
 
-                          if (!mounted) return;
-                          Navigator.of(dialogCtx).pop();
-                          nav.pushReplacement(
-                            MaterialPageRoute(builder: (_) => const MainShell()),
-                          );
-                        } catch (e) {
-                          // Offline login support: allow member login if server is unreachable
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString(AppConstants.kCurrentStaffId, staff.id);
-                          await prefs.setString('user_role', 'staff');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(AppConstants.kIsLoggedIn, true);
+      await prefs.setString(AppConstants.kCurrentStaffId, staffId);
+      await prefs.setString(AppConstants.kUserRole, 'staff');
+      await prefs.setString('auth_token', token);
 
-                          ref.read(currentStaffIdProvider.notifier).state = staff.id;
-                          ref.read(userRoleProvider.notifier).state = 'staff';
+      ref.read(currentStaffIdProvider.notifier).state = staffId;
+      ref.read(userRoleProvider.notifier).state = 'staff';
 
-                          if (!mounted) return;
-                          Navigator.of(dialogCtx).pop();
-                          nav.pushReplacement(
-                            MaterialPageRoute(builder: (_) => const MainShell()),
-                          );
-                        }
-                      },
-                child: isSubmitting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Login'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } catch (e) {
+      setState(() {
+        _isMemberLoading = false;
+        _memberError = e.toString();
+      });
+    }
+  }
+
+  // ─── Admin Login Handler ──────────────────────────────────────────────────
+  Future<void> _handleAdminLogin() async {
+    final username = _adminUserCtrl.text.trim();
+    final password = _adminPassCtrl.text.trim();
+
+    if (username.isEmpty || password.isEmpty) {
+      setState(() => _adminError = 'Username and password are required');
+      return;
+    }
+
+    setState(() {
+      _isAdminLoading = true;
+      _adminError = null;
+    });
+
+    try {
+      final res = await ref.read(authServiceProvider).adminLogin(username, password);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(AppConstants.kIsLoggedIn, true);
+      await prefs.setString(AppConstants.kUserRole, 'admin');
+      await prefs.setString('auth_token', res['access_token'] ?? '');
+
+      final staffList = await ref.read(staffListProvider.future);
+      final activeStaff = staffList.where((s) => s.isActive && s.isApproved).toList();
+      final defaultStaffId = activeStaff.isNotEmpty ? activeStaff.first.id : 'admin';
+
+      await prefs.setString(AppConstants.kCurrentStaffId, defaultStaffId);
+      ref.read(currentStaffIdProvider.notifier).state = defaultStaffId;
+      ref.read(userRoleProvider.notifier).state = 'admin';
+
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } catch (e) {
+      setState(() {
+        _isAdminLoading = false;
+        _adminError = e.toString();
+      });
+    }
   }
 
   // ─── Forgot Password / PIN via Email OTP Modal ──────────────────────────────
-  Future<void> _showForgotDialog({StaffModel? staff, String accountType = 'member'}) async {
-    final emailCtrl = TextEditingController(text: staff?.email ?? '');
+  Future<void> _showForgotDialog({String accountType = 'member'}) async {
+    final emailCtrl = TextEditingController();
     final otpCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
 
-    int step = 1; // 1 = Enter Email, 2 = Enter OTP, 3 = Reset Password / PIN
+    int step = 1;
     String? formError;
     bool isSubmitting = false;
     int cooldownSeconds = 0;
@@ -223,19 +206,16 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                     ],
 
                     if (step == 1) ...[
-                      Text(
-                        accountType == 'admin'
-                            ? 'Enter your Admin email address to receive a 6-digit password reset OTP:'
-                            : 'Enter registered email address for ${staff?.name ?? "member"} to receive a 6-digit PIN reset OTP:',
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
+                      const Text(
+                        'Enter your registered email address to receive a 6-digit OTP code.',
+                        style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: emailCtrl,
                         keyboardType: TextInputType.emailAddress,
-                        autofocus: true,
                         decoration: const InputDecoration(
-                          labelText: 'Registered Email Address *',
+                          labelText: 'Registered Email Address',
                           prefixIcon: Icon(Icons.email_outlined, size: 20),
                         ),
                       ),
@@ -243,13 +223,13 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                       Center(
                         child: Column(
                           children: [
-                            const Text('We\'ve sent a 6-digit reset code to', style: TextStyle(fontSize: 13, color: AppColors.inkSoft)),
+                            const Text('Enter the 6-digit code sent to:', style: TextStyle(fontSize: 13, color: AppColors.inkSoft)),
                             const SizedBox(height: 4),
                             Text(
                               emailCtrl.text.trim(),
                               style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: AppColors.maroon700),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                             TextField(
                               controller: otpCtrl,
                               keyboardType: TextInputType.number,
@@ -259,81 +239,53 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 8),
                               decoration: InputDecoration(
                                 hintText: '• • • • • •',
-                                hintStyle: const TextStyle(letterSpacing: 8, color: AppColors.inkSoft),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 counterText: '',
                               ),
                             ),
-                            const SizedBox(height: 14),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                TextButton(
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      step = 1;
-                                      formError = null;
-                                      otpCtrl.clear();
-                                    });
-                                  },
-                                  child: const Text('Change Email', style: TextStyle(color: AppColors.inkSoft, fontSize: 12.5)),
-                                ),
-                                TextButton(
-                                  onPressed: (cooldownSeconds > 0 || isSubmitting)
-                                      ? null
-                                      : () async {
-                                          setDialogState(() {
-                                            isSubmitting = true;
-                                            formError = null;
-                                          });
-                                          try {
-                                            final res = await ref.read(authServiceProvider).forgotPasswordSendOtp(
-                                                  email: emailCtrl.text.trim(),
-                                                  accountType: accountType,
-                                                  staffId: staff?.id,
-                                                );
-                                            startCooldownTimer(res['cooldown_seconds'] ?? 30, setDialogState);
-                                            setDialogState(() {
-                                              isSubmitting = false;
-                                              formError = null;
-                                            });
-                                          } catch (e) {
-                                            setDialogState(() {
-                                              isSubmitting = false;
-                                              formError = e.toString();
-                                            });
-                                          }
-                                        },
-                                  child: Text(
-                                    cooldownSeconds > 0
-                                        ? 'Resend OTP in 00:${cooldownSeconds.toString().padLeft(2, '0')}'
-                                        : 'Resend OTP',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: cooldownSeconds > 0 ? AppColors.inkSoft : AppColors.maroon700,
-                                      fontSize: 12.5,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 10),
+                            TextButton(
+                              onPressed: (cooldownSeconds > 0 || isSubmitting)
+                                  ? null
+                                  : () async {
+                                      setDialogState(() {
+                                        isSubmitting = true;
+                                        formError = null;
+                                      });
+                                      try {
+                                        final res = await ref.read(authServiceProvider).forgotPasswordSendOtp(
+                                              email: emailCtrl.text.trim(),
+                                              accountType: accountType,
+                                            );
+                                        startCooldownTimer(res['cooldown_seconds'] ?? 30, setDialogState);
+                                        setDialogState(() => isSubmitting = false);
+                                      } catch (e) {
+                                        setDialogState(() {
+                                          isSubmitting = false;
+                                          formError = e.toString();
+                                        });
+                                      }
+                                    },
+                              child: Text(
+                                cooldownSeconds > 0 ? 'Resend in 00:${cooldownSeconds.toString().padLeft(2, '0')}' : 'Resend OTP',
+                                style: const TextStyle(color: AppColors.maroon700, fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ] else ...[
                       Text(
-                        accountType == 'admin' ? 'Create a new Admin Password:' : 'Create a new 4-digit PIN for ${staff?.name ?? "member"}:',
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
+                        accountType == 'admin' ? 'Set your new Admin Password:' : 'Set your new 4-digit PIN:',
+                        style: const TextStyle(fontSize: 13, color: AppColors.inkSoft),
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: newPassCtrl,
                         obscureText: true,
-                        keyboardType: accountType == 'admin' ? TextInputType.text : TextInputType.number,
                         maxLength: accountType == 'admin' ? 32 : 6,
-                        autofocus: true,
                         decoration: InputDecoration(
-                          labelText: accountType == 'admin' ? 'New Admin Password *' : 'New 4-digit PIN *',
+                          labelText: accountType == 'admin' ? 'New Password' : 'New 4-digit PIN',
                           prefixIcon: const Icon(Icons.lock_outline, size: 20),
                           counterText: '',
                         ),
@@ -357,7 +309,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                     : () async {
                         final email = emailCtrl.text.trim();
                         if (step == 1) {
-                          if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+                          if (email.isEmpty || !email.contains('@')) {
                             setDialogState(() => formError = 'Please enter a valid email address.');
                             return;
                           }
@@ -369,7 +321,6 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                             final res = await ref.read(authServiceProvider).forgotPasswordSendOtp(
                                   email: email,
                                   accountType: accountType,
-                                  staffId: staff?.id,
                                 );
                             startCooldownTimer(res['cooldown_seconds'] ?? 30, setDialogState);
                             setDialogState(() {
@@ -403,23 +354,21 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                                 step = 3;
                               });
                             } else {
-                              otpCtrl.clear();
                               setDialogState(() {
                                 isSubmitting = false;
-                                formError = res['message'] ?? 'Invalid verification code';
+                                formError = res['message'] ?? 'Invalid OTP code.';
                               });
                             }
                           } catch (e) {
-                            otpCtrl.clear();
                             setDialogState(() {
                               isSubmitting = false;
                               formError = e.toString();
                             });
                           }
                         } else {
-                          final newPass = newPassCtrl.text.trim();
-                          if (newPass.isEmpty) {
-                            setDialogState(() => formError = accountType == 'admin' ? 'Please enter a new password' : 'Please enter a new PIN');
+                          final newValue = newPassCtrl.text.trim();
+                          if (newValue.isEmpty) {
+                            setDialogState(() => formError = 'Please enter your new value.');
                             return;
                           }
                           setDialogState(() {
@@ -427,22 +376,15 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                             formError = null;
                           });
                           try {
-                            final res = await ref.read(authServiceProvider).forgotPasswordReset(
-                                  email: email,
+                            await ref.read(authServiceProvider).verifyResetRequest(
                                   accountType: accountType,
-                                  otp: otpCtrl.text.trim(),
-                                  newPasswordOrPin: newPass,
-                                  staffId: staff?.id,
+                                  identifier: email,
                                 );
                             cooldownTimer?.cancel();
                             if (!mounted) return;
                             Navigator.of(dialogCtx).pop();
-
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(res['message'] ?? 'Password/PIN reset successfully!'),
-                                backgroundColor: AppColors.income,
-                              ),
+                              const SnackBar(content: Text('Password/PIN reset successfully! You can now log in.')),
                             );
                           } catch (e) {
                             setDialogState(() {
@@ -454,7 +396,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                       },
                 child: isSubmitting
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(step == 1 ? 'Send Reset OTP' : step == 2 ? 'Verify OTP' : 'Reset Now'),
+                    : Text(step == 1 ? 'Send OTP' : step == 2 ? 'Verify OTP' : 'Reset Now'),
               ),
             ],
           );
@@ -463,7 +405,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
     );
   }
 
-  // ─── Self Registration Modal for New Billing Members ──────────────────────────
+  // ─── Self Registration Modal ────────────────────────────────────────────────
   Future<void> _showRegisterMemberDialog() async {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -471,12 +413,11 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
     final pinCtrl = TextEditingController(text: '1234');
     final otpCtrl = TextEditingController();
 
-    int step = 1; // 1 = Member Info, 2 = Verify Email OTP
+    int step = 1;
     String? formError;
     bool isSubmitting = false;
     int cooldownSeconds = 0;
     Timer? cooldownTimer;
-    String? otpPreview; // Set when email delivery fails — shows OTP directly on screen
 
     void startCooldownTimer(int seconds, Function setDialogState) {
       cooldownTimer?.cancel();
@@ -706,8 +647,6 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                             setDialogState(() {
                               isSubmitting = false;
                               step = 2;
-                              // If email delivery failed, server returns the OTP directly
-                              otpPreview = res['otp_preview'] as String?;
                             });
                           } catch (e) {
                             setDialogState(() {
@@ -766,11 +705,11 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                                         ),
                                         child: const Row(
                                           children: [
-                                            Icon(Icons.admin_panel_settings_outlined, color: AppColors.maroon700, size: 22),
+                                            Icon(Icons.hourglass_empty, color: AppColors.maroon700, size: 20),
                                             SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
-                                                'Awaiting Admin Approval: Please ask the Administrator to approve your account inside Admin Settings to log in.',
+                                                'Your registration request is pending Admin approval. Please ask the Admin to approve your account inside Admin Settings.',
                                                 style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
                                               ),
                                             ),
@@ -780,19 +719,20 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                                     ],
                                   ),
                                   actions: [
-                                    ElevatedButton(onPressed: () => Navigator.of(infoCtx).pop(), child: const Text('OK')),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.of(infoCtx).pop(),
+                                      child: const Text('OK'),
+                                    ),
                                   ],
                                 ),
                               );
                             } else {
-                              otpCtrl.clear();
                               setDialogState(() {
                                 isSubmitting = false;
-                                formError = res['message'] ?? 'Invalid verification code';
+                                formError = res['message'] ?? 'Invalid verification OTP code.';
                               });
                             }
                           } catch (e) {
-                            otpCtrl.clear();
                             setDialogState(() {
                               isSubmitting = false;
                               formError = e.toString();
@@ -811,53 +751,8 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
     );
   }
 
-  // ─── Admin Login Handler ──────────────────────────────────────────────────
-  Future<void> _handleAdminLogin() async {
-    final username = _adminUserCtrl.text.trim();
-    final password = _adminPassCtrl.text.trim();
-
-    if (username.isEmpty || password.isEmpty) {
-      setState(() => _adminError = 'Username and password are required');
-      return;
-    }
-
-    setState(() {
-      _isAdminLoading = true;
-      _adminError = null;
-    });
-
-    try {
-      final res = await ref.read(authServiceProvider).adminLogin(username, password);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', res['access_token'] ?? '');
-      await prefs.setString('user_role', 'admin');
-
-      final staffList = await ref.read(staffListProvider.future);
-      final activeStaff = staffList.where((s) => s.isActive && s.isApproved).toList();
-      final defaultStaffId = activeStaff.isNotEmpty ? activeStaff.first.id : null;
-
-      if (defaultStaffId != null) {
-        await prefs.setString(AppConstants.kCurrentStaffId, defaultStaffId);
-        ref.read(currentStaffIdProvider.notifier).state = defaultStaffId;
-      }
-      ref.read(userRoleProvider.notifier).state = 'admin';
-
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainShell()),
-      );
-    } catch (e) {
-      setState(() {
-        _isAdminLoading = false;
-        _adminError = e.toString();
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final staffAsync = ref.watch(staffListProvider);
-
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: Column(
@@ -871,7 +766,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
               child: Center(
                 child: Container(
-                  constraints: const BoxConstraints(maxWidth: 460),
+                  constraints: const BoxConstraints(maxWidth: 440),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -887,6 +782,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Tab Bar Selector
                       Container(
                         decoration: BoxDecoration(
                           color: AppColors.paper,
@@ -902,7 +798,10 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                                 selected: _selectedTab == 0,
                                 selectedColor: AppColors.maroon700,
                                 labelStyle: TextStyle(color: _selectedTab == 0 ? Colors.white : AppColors.ink),
-                                onSelected: (_) => setState(() => _selectedTab = 0),
+                                onSelected: (_) => setState(() {
+                                  _selectedTab = 0;
+                                  _memberError = null;
+                                }),
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -912,7 +811,10 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                                 selected: _selectedTab == 1,
                                 selectedColor: AppColors.maroon700,
                                 labelStyle: TextStyle(color: _selectedTab == 1 ? Colors.white : AppColors.ink),
-                                onSelected: (_) => setState(() => _selectedTab = 1),
+                                onSelected: (_) => setState(() {
+                                  _selectedTab = 1;
+                                  _adminError = null;
+                                }),
                               ),
                             ),
                           ],
@@ -920,223 +822,149 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                       ),
                       const SizedBox(height: 24),
 
+                      // ─── BILLING MEMBER LOGIN FORM ───────────────────────────────
                       if (_selectedTab == 0) ...[
                         const Text(
-                          "Who's billing today?",
-                          style: TextStyle(fontFamily: 'Fraunces', fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.ink),
+                          'Billing Member Sign In',
+                          style: TextStyle(fontFamily: 'Fraunces', fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.ink),
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Select your name & enter PIN to continue',
-                          style: TextStyle(color: AppColors.inkSoft, fontSize: 13.5),
+                          'Type your Username, Mobile, or Email & PIN to sign in',
+                          style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
                         ),
-                        const SizedBox(height: 16),
-                        staffAsync.when(
-                          data: (staffList) {
-                            final activeStaff = staffList.where((s) => s.isActive && s.isApproved).toList();
-                            if (activeStaff.isEmpty) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                child: Text(
-                                  'No billing members configured yet.\nPlease log in as Admin to add billing members.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
-                                ),
-                              );
-                            }
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 1.25,
-                              ),
-                              itemCount: activeStaff.length,
-                              itemBuilder: (context, index) {
-                                final staff = activeStaff[index];
-                                return InkWell(
-                                  onTap: () => _onStaffCardTap(staff),
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: AppColors.paper,
-                                      border: Border.all(color: AppColors.line, width: 1.5),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 22,
-                                          backgroundColor: AppColors.maroon700,
-                                          child: Text(
-                                            staff.initial,
-                                            style: const TextStyle(color: AppColors.gold100, fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Fraunces'),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          staff.name,
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.ink),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        const Text('🔒 PIN Protected', style: TextStyle(fontSize: 11, color: AppColors.inkSoft)),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                          loading: () => const CircularProgressIndicator(),
-                          error: (err, _) => Column(
-                            children: [
-                              Text('Unable to load staff: $err', style: const TextStyle(color: AppColors.expense)),
-                              const SizedBox(height: 12),
-                              ElevatedButton(onPressed: () => ref.refresh(staffListProvider), child: const Text('Retry Connection')),
-                            ],
+                        const SizedBox(height: 18),
+                        if (_memberError != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(color: AppColors.expenseBg, borderRadius: BorderRadius.circular(8)),
+                            child: Text(_memberError!, style: const TextStyle(color: AppColors.expense, fontSize: 12.5)),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        TextField(
+                          controller: _memberIdCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Username / Phone / Email',
+                            hintText: 'Enter your name, mobile number or email',
+                            prefixIcon: Icon(Icons.person_outline, size: 20),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _memberPinCtrl,
+                          obscureText: true,
+                          maxLength: 6,
+                          decoration: const InputDecoration(
+                            labelText: '4-digit Login PIN / Password',
+                            hintText: '••••',
+                            prefixIcon: Icon(Icons.lock_outline, size: 20),
+                            counterText: '',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => _showForgotDialog(accountType: 'member'),
+                            child: const Text('Forgot PIN?', style: TextStyle(color: AppColors.maroon700, fontSize: 12.5, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isMemberLoading ? null : _handleMemberLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.maroon700,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: _isMemberLoading
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text('Sign In to Billing', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 10),
                         OutlinedButton.icon(
                           onPressed: _showRegisterMemberDialog,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.maroon700,
                             side: const BorderSide(color: AppColors.maroon700, width: 1.5),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           icon: const Icon(Icons.person_add_alt_1, size: 18),
                           label: const Text(
                             'Register as New Billing Member',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                         ),
                       ] else ...[
-                        Card(
-                          elevation: 3,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppColors.line)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const Text(
-                                  'Admin Portal',
-                                  style: TextStyle(fontFamily: 'Fraunces', fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.maroon800),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text('Enter administrator credentials to log in:', style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft)),
-                                const SizedBox(height: 16),
-                                if (_adminError != null) ...[
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(color: AppColors.expenseBg, borderRadius: BorderRadius.circular(8)),
-                                    child: Text(_adminError!, style: const TextStyle(color: AppColors.expense, fontSize: 12.5)),
-                                  ),
-                                  const SizedBox(height: 12),
-                                ],
-                                TextField(
-                                  controller: _adminUserCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Username',
-                                    prefixIcon: Icon(Icons.person_outline, size: 20),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                TextField(
-                                  controller: _adminPassCtrl,
-                                  obscureText: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Password (Default: kovil2024)',
-                                    prefixIcon: Icon(Icons.lock_outline, size: 20),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () => _showForgotDialog(accountType: 'admin'),
-                                    child: const Text('Forgot Admin Password? Reset via Email OTP', style: TextStyle(fontSize: 12, color: AppColors.maroon700)),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _isAdminLoading ? null : _handleAdminLogin,
-                                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.maroon700, padding: const EdgeInsets.symmetric(vertical: 14)),
-                                  child: _isAdminLoading
-                                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                      : const Text('Login as Administrator', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
+                        // ─── ADMIN LOGIN FORM ──────────────────────────────────────
+                        const Text(
+                          'Admin Sign In',
+                          style: TextStyle(fontFamily: 'Fraunces', fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.ink),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Enter Administrator credentials to manage Kovil accounts',
+                          style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
+                        ),
+                        const SizedBox(height: 18),
+                        if (_adminError != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(color: AppColors.expenseBg, borderRadius: BorderRadius.circular(8)),
+                            child: Text(_adminError!, style: const TextStyle(color: AppColors.expense, fontSize: 12.5)),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        TextField(
+                          controller: _adminUserCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Admin Username',
+                            prefixIcon: Icon(Icons.admin_panel_settings_outlined, size: 20),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _adminPassCtrl,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Admin Password',
+                            prefixIcon: Icon(Icons.lock_outline, size: 20),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => _showForgotDialog(accountType: 'admin'),
+                            child: const Text('Forgot Password?', style: TextStyle(color: AppColors.maroon700, fontSize: 12.5, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isAdminLoading ? null : _handleAdminLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.maroon700,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
+                            child: _isAdminLoading
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text('Login as Administrator', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                           ),
                         ),
                       ],
-                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showServerUrlDialog() async {
-    final currentUrl = await OfflineStorageService.getCustomServerUrl();
-    final urlCtrl = TextEditingController(text: currentUrl);
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.wifi, color: AppColors.maroon700),
-            SizedBox(width: 8),
-            Text('Configure Backend Server IP', style: TextStyle(fontFamily: 'Fraunces', fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'If running the server on a local computer on the temple Wi-Fi network, enter your PC\'s local IP address below:\nExample: http://192.168.1.100:8000',
-              style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: urlCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Backend Server URL',
-                prefixIcon: Icon(Icons.link, size: 20),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final newUrl = urlCtrl.text.trim();
-              if (newUrl.isNotEmpty) {
-                await OfflineStorageService.setCustomServerUrl(newUrl);
-                ref.refresh(staffListProvider);
-              }
-              if (!ctx.mounted) return;
-              Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Server URL updated to $newUrl'), backgroundColor: AppColors.income),
-              );
-            },
-            child: const Text('Save & Reconnect'),
           ),
         ],
       ),

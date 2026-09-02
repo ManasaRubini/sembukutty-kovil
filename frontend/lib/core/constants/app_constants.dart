@@ -5,6 +5,8 @@ class AppConstants {
   static const kApiBaseUrl = 'api_base_url';
   static const kCurrentStaffId = 'current_staff_id';
   static const kAuthToken = 'auth_token';
+  static const kUserRole = 'user_role';
+  static const kIsLoggedIn = 'is_logged_in';
 
   // Default API URL — 24/7 Render Cloud Server
   static const defaultApiUrl = 'https://sembukutty-kovil-api.onrender.com';

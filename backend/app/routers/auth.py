@@ -602,26 +602,46 @@ async def forgot_password_reset(req: ForgotPasswordResetReq, db: AsyncSession = 
 
 @router.post("/staff-login", response_model=TokenOut)
 async def staff_login(req: StaffLoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Staff).where(Staff.id == req.staff_id, Staff.is_active == True))
-    staff = result.scalar_one_or_none()
+    target_id = req.staff_id or req.username or req.identifier
+    if not target_id or not target_id.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username, Phone, Email, or Staff ID is required.",
+        )
+
+    clean_id = target_id.strip()
+
+    # Search for active staff by ID, Name, Phone, or Email
+    result = await db.execute(
+        select(Staff).where(
+            Staff.is_active == True,
+            or_(
+                Staff.id == clean_id,
+                Staff.name == clean_id,
+                Staff.phone == clean_id,
+                Staff.email == clean_id.lower(),
+            ),
+        )
+    )
+    staff = result.scalars().first()
     if not staff:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Staff member not found or inactive",
+            detail="Billing member account not found. Please check your username/phone/email or register as a new member.",
         )
 
     # Check approval status
     if not staff.is_approved:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Registration pending Admin approval. Please contact Admin to approve your account inside Admin Settings.",
+            detail="Registration pending Admin approval. Please contact Admin to approve your account.",
         )
 
     # Verify PIN
-    if not verify_secret(req.pin, staff.pin_hash):
+    if not verify_secret(req.pin.strip(), staff.pin_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect PIN entered",
+            detail="Incorrect PIN or password entered",
         )
 
     token = create_access_token({

@@ -144,6 +144,12 @@ class DashboardScreen extends ConsumerWidget {
                           MaterialPageRoute(builder: (_) => TransferFormScreen(staffId: staffId)),
                         ),
                       ),
+                      QuickActionCard(
+                        emoji: '🪪',
+                        label: 'Add New\nDevotee',
+                        topBorderColor: AppColors.maroon700,
+                        onTap: () => _showAddDevoteeDialog(context, ref),
+                      ),
                     ],
                   );
                 },
@@ -261,6 +267,125 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAddDevoteeDialog(BuildContext context, WidgetRef ref) {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+    bool isSaving = false;
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.person_add_alt_1, color: AppColors.maroon700),
+                SizedBox(width: 8),
+                Text('Add New Devotee', style: TextStyle(fontFamily: 'Fraunces', fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (errorText != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.expenseBg, borderRadius: BorderRadius.circular(8)),
+                        child: Text(errorText!, style: const TextStyle(color: AppColors.expense, fontSize: 12.5)),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    const Text('Enter devotee details to add them to the Kovil records:', style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft)),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: nameCtrl,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Devotee Full Name *',
+                        hintText: 'e.g. கார்த்திக் / Ramaswamy',
+                        prefixIcon: Icon(Icons.person_outline, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Mobile Phone Number',
+                        hintText: 'e.g. 9876543210',
+                        prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: addressCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Address / Town',
+                        hintText: 'e.g. தூத்துக்குடி',
+                        prefixIcon: Icon(Icons.location_on_outlined, size: 20),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        final name = nameCtrl.text.trim();
+                        if (name.isEmpty) {
+                          setDialogState(() => errorText = 'Devotee name is required.');
+                          return;
+                        }
+                        setDialogState(() {
+                          isSaving = true;
+                          errorText = null;
+                        });
+
+                        try {
+                          final member = await ref.read(memberServiceProvider).create(
+                                name: name,
+                                phone: phoneCtrl.text.trim(),
+                                address: addressCtrl.text.trim(),
+                              );
+                          if (!ctx.mounted) return;
+                          Navigator.of(dialogCtx).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Devotee "${member.name}" added successfully!')),
+                          );
+                        } catch (e) {
+                          setDialogState(() {
+                            isSaving = false;
+                            errorText = e.toString();
+                          });
+                        }
+                      },
+                icon: isSaving
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.check, size: 18),
+                label: const Text('Save Devotee'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

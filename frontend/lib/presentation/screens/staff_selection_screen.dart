@@ -132,7 +132,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
       final defaultStaffId = activeStaff.isNotEmpty ? activeStaff.first.id : 'admin';
 
       await prefs.setString(AppConstants.kCurrentStaffId, defaultStaffId);
-      ref.read(currentStaffIdProvider.notifier).state = defaultStaffId;
+      ref.read(currentStaffIdProvider.notifier).state = StaffId;
       ref.read(userRoleProvider.notifier).state = 'admin';
 
       if (!mounted) return;
@@ -503,7 +503,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                         obscureText: true,
                         maxLength: 6,
                         decoration: const InputDecoration(
-                          labelText: '4-digit Login PIN (Default: 1234) *',
+                          labelText: '4-digit Login PIN',
                           prefixIcon: Icon(Icons.lock_outline, size: 20),
                           counterText: '',
                         ),

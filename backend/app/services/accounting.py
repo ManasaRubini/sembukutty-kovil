@@ -215,23 +215,27 @@ async def compute_balance_report(db, scope: str, staff_id: Optional[str], as_of:
     if scope == "all":
         staff_list = all_staff
         total_cash = overall_cash_balance_from_txns(opening_cash, all_txns)
-    elif scope == "mine" and staff_id:
-        staff_list = [s for s in all_staff if s.id == staff_id]
-        s_txns = [t for t in all_txns if t.staff_id == staff_id]
-        is_holder = (cash_holder_id == staff_id) if cash_holder_id else (staff_id == first_staff_id)
-        total_cash = cash_balance_for_staff_from_txns(
-            opening_cash, is_holder, s_txns
-        )
     else:
-        staff_list = [s for s in all_staff if s.id == scope]
-        s_txns = [t for t in all_txns if t.staff_id == scope]
-        is_holder = (cash_holder_id == scope) if cash_holder_id else (scope == first_staff_id)
+        target_id = (
+            staff_id
+            if (scope == "mine" and staff_id)
+            else (first_staff_id if scope in ("mine", "admin") else scope)
+        )
+        staff_list = [s for s in all_staff if s.id == target_id]
+        if not staff_list and all_staff:
+            staff_list = [all_staff[0]]
+            target_id = all_staff[0].id
+
+        s_txns = [t for t in all_txns if t.staff_id == target_id]
+        is_holder = (cash_holder_id == target_id) if cash_holder_id else (target_id == first_staff_id)
         total_cash = cash_balance_for_staff_from_txns(
             opening_cash, is_holder, s_txns
         )
 
     per_staff = []
-    for s in staff_list:
+    # Always include all active staff in per_staff list when scope=all, or specific staff when scoped
+    display_staff_list = all_staff if scope == "all" else staff_list
+    for s in display_staff_list:
         s_txns = [t for t in all_txns if t.staff_id == s.id]
         is_holder = (cash_holder_id == s.id) if cash_holder_id else (s.id == first_staff_id)
         cash = cash_balance_for_staff_from_txns(

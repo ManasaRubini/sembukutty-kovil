@@ -11,6 +11,7 @@ from app.schemas import CollectionSummary, ExpenseSummary, BalanceReport
 from app.services.accounting import (
     bank_balance_from_txns,
     cash_balance_for_staff_from_txns,
+    compute_balance_report,
 )
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -104,45 +105,5 @@ async def balances_report(
 ):
     today = DateType.today().isoformat()
     as_of_date = as_of or today
-
-    ob_result = await db.execute(select(OpeningBalance).limit(1))
-    opening = ob_result.scalar_one_or_none()
-    opening_bank = float(opening.bank_balance) if opening else 0.0
-    opening_cash = float(opening.cash_balance) if opening else 0.0
-    cash_holder_id = opening.cash_holder_staff_id if opening else None
-
-    all_txns_result = await db.execute(
-        select(Transaction).where(Transaction.date <= DateType.fromisoformat(as_of_date))
-    )
-    all_txns = list(all_txns_result.scalars().all())
-
-    bank_bal = bank_balance_from_txns(opening_bank, all_txns)
-
-    staff_result = await db.execute(select(Staff).where(Staff.is_active == True))
-    all_staff = list(staff_result.scalars().all())
-
-    if scope == "all":
-        staff_list = all_staff
-    elif scope == "mine" and staff_id:
-        staff_list = [s for s in all_staff if s.id == staff_id]
-    else:
-        staff_list = [s for s in all_staff if s.id == scope]
-
-    per_staff = []
-    total_cash = 0.0
-    for s in staff_list:
-        s_txns = [t for t in all_txns if t.staff_id == s.id]
-        cash = cash_balance_for_staff_from_txns(
-            opening_cash, cash_holder_id == s.id, s_txns
-        )
-        total_cash += cash
-        per_staff.append({"staff_id": s.id, "staff_name": s.name, "cash_balance": cash})
-
-    return BalanceReport(
-        opening_bank=opening_bank,
-        opening_cash=opening_cash,
-        bank_balance=bank_bal,
-        total_cash=total_cash,
-        grand_total=bank_bal + total_cash,
-        per_staff=per_staff,
-    )
+    res = await compute_balance_report(db, scope, staff_id, as_of_date)
+    return BalanceReport(**res)

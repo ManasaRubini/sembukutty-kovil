@@ -63,7 +63,10 @@ class _MainShellState extends ConsumerState<MainShell> {
       const MyEntriesScreen(),
       const ReportsScreen(),
       const DocumentsScreen(),
-      SettingsScreen(onSwitchStaff: _switchStaff),
+      SettingsScreen(
+        onSwitchStaff: _switchStaff,
+        onNavigateTab: (tab) => setState(() => _currentTab = tab),
+      ),
     ];
 
     return PopScope(

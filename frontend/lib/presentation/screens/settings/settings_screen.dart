@@ -13,8 +13,13 @@ import '../../widgets/stat_card.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   final VoidCallback onSwitchStaff;
+  final ValueChanged<int>? onNavigateTab;
 
-  const SettingsScreen({super.key, required this.onSwitchStaff});
+  const SettingsScreen({
+    super.key,
+    required this.onSwitchStaff,
+    this.onNavigateTab,
+  });
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -746,12 +751,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           if (!mounted) return;
                           Navigator.of(dialogCtx).pop();
 
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(res['message'] ?? 'Data reset successfully.'),
-                              backgroundColor: AppColors.income,
-                            ),
-                          );
+                          // Redirect Admin to Dashboard tab
+                          widget.onNavigateTab?.call(0);
+
+                          // Show pop-up message dialog on Dashboard screen
+                          if (context.mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (popCtx) => AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                title: const Row(
+                                  children: [
+                                    Icon(Icons.check_circle_rounded, color: AppColors.income, size: 26),
+                                    SizedBox(width: 8),
+                                    Text('Data Restored Successfully', style: TextStyle(fontFamily: 'Fraunces', fontWeight: FontWeight.bold, fontSize: 18)),
+                                  ],
+                                ),
+                                content: const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'The temple accounting data has been reset and restored successfully.',
+                                      style: TextStyle(fontSize: 13.5, height: 1.4),
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      '• All receipts, vouchers, and transfer notes have been cleared.\n'
+                                      '• Document serial numbers have been reset to start from 0.\n'
+                                      '• All Devotee (member) records remain intact.',
+                                      style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft, height: 1.4),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.maroon700, foregroundColor: Colors.white),
+                                    onPressed: () => Navigator.of(popCtx).pop(),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
                         } catch (e) {
                           setDialogState(() {
                             isSubmitting = false;

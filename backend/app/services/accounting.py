@@ -135,12 +135,16 @@ async def compute_dashboard(db, staff_id: Optional[str] = None) -> dict:
     # Combined totals for EVERYONE (tax, donation, expense)
     totals = totals_for_staff(all_txns)
 
+    all_staff = await get_all_staff(db)
+    first_staff_id = all_staff[0].id if all_staff else None
+
     # Cash in hand for current staff member
     if staff_id:
         my_txns = [t for t in all_txns if t.staff_id == staff_id]
+        is_holder = (cash_holder_id == staff_id) if cash_holder_id else (staff_id == first_staff_id)
         my_cash = cash_balance_for_staff_from_txns(
             opening_cash,
-            cash_holder_id == staff_id or cash_holder_id is None,
+            is_holder,
             my_txns,
         )
     else:
@@ -206,27 +210,32 @@ async def compute_balance_report(db, scope: str, staff_id: Optional[str], as_of:
 
     bank_bal = bank_balance_from_txns(opening_bank, all_txns)
 
+    first_staff_id = all_staff[0].id if all_staff else None
+
     if scope == "all":
         staff_list = all_staff
         total_cash = overall_cash_balance_from_txns(opening_cash, all_txns)
     elif scope == "mine" and staff_id:
         staff_list = [s for s in all_staff if s.id == staff_id]
         s_txns = [t for t in all_txns if t.staff_id == staff_id]
+        is_holder = (cash_holder_id == staff_id) if cash_holder_id else (staff_id == first_staff_id)
         total_cash = cash_balance_for_staff_from_txns(
-            opening_cash, cash_holder_id == staff_id or cash_holder_id is None, s_txns
+            opening_cash, is_holder, s_txns
         )
     else:
         staff_list = [s for s in all_staff if s.id == scope]
         s_txns = [t for t in all_txns if t.staff_id == scope]
+        is_holder = (cash_holder_id == scope) if cash_holder_id else (scope == first_staff_id)
         total_cash = cash_balance_for_staff_from_txns(
-            opening_cash, cash_holder_id == scope or cash_holder_id is None, s_txns
+            opening_cash, is_holder, s_txns
         )
 
     per_staff = []
     for s in staff_list:
         s_txns = [t for t in all_txns if t.staff_id == s.id]
+        is_holder = (cash_holder_id == s.id) if cash_holder_id else (s.id == first_staff_id)
         cash = cash_balance_for_staff_from_txns(
-            opening_cash, cash_holder_id == s.id or cash_holder_id is None, s_txns
+            opening_cash, is_holder, s_txns
         )
         per_staff.append({"staff_id": s.id, "staff_name": s.name, "cash_balance": cash})
 

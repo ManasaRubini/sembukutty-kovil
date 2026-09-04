@@ -52,44 +52,49 @@ class TempleHeader extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Brand mark & title
-                    Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.gold300, width: 1.5),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.temple_hindu, color: AppColors.gold300, size: 22),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Sembukutty Sastha Kovil',
-                              style: TextStyle(
-                                fontFamily: 'Fraunces',
-                                color: AppColors.gold100,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.gold300, width: 1.5),
                             ),
-                            Text(
-                              'BILLING & ACCOUNTS',
-                              style: TextStyle(
-                                color: AppColors.gold300,
-                                fontSize: 10,
-                                letterSpacing: 1.2,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: const Center(
+                              child: Icon(Icons.temple_hindu, color: AppColors.gold300, size: 22),
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'Sembukutty Sastha Kovil',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'Fraunces',
+                                    color: AppColors.gold100,
+                                    fontSize: 16.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  'BILLING & ACCOUNTS',
+                                  style: TextStyle(
+                                    color: AppColors.gold300,
+                                    fontSize: 9.5,
+                                    letterSpacing: 1.1,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     // Staff chip
                     if (staffName != null && staffName!.isNotEmpty)

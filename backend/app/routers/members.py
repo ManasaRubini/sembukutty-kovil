@@ -115,7 +115,6 @@ async def get_member(member_id: str, db: AsyncSession = Depends(get_db)):
 async def create_member(
     body: MemberCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
 ):
     member = Member(id=str(uuid.uuid4()), **body.model_dump())
     db.add(member)
@@ -129,7 +128,6 @@ async def update_member(
     member_id: str,
     body: MemberUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Member).where(Member.id == member_id))
     member = result.scalar_one_or_none()
@@ -146,7 +144,6 @@ async def update_member(
 async def delete_member(
     member_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(select(Member).where(Member.id == member_id))
     member = result.scalar_one_or_none()

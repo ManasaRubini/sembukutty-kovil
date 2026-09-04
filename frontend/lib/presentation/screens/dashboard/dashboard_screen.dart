@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
-import '../../../data/models/models.dart';
 import '../../../providers/providers.dart';
+import '../../dialogs/document_preview_dialog.dart';
 import '../../widgets/common_widgets.dart';
 import '../../widgets/stat_card.dart';
-import '../billing/tax_donation_form_screen.dart';
 import '../billing/expense_form_screen.dart';
+import '../billing/tax_donation_form_screen.dart';
 import '../billing/transfer_form_screen.dart';
-import '../../dialogs/document_preview_dialog.dart';
+import '../devotees/devotees_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   final ValueChanged<int>? onNavigateTab;
@@ -148,15 +148,11 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                       QuickActionCard(
                         emoji: '🪪',
-                        label: 'Add New\nDevotee',
+                        label: 'Devotee\nDetails',
                         topBorderColor: AppColors.maroon700,
-                        onTap: () => _showAddDevoteeDialog(context, ref),
-                      ),
-                      QuickActionCard(
-                        emoji: '🗑️',
-                        label: 'Delete\nDevotee',
-                        topBorderColor: AppColors.expense,
-                        onTap: () => _showDeleteDevoteeDialog(context, ref),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const DevoteesScreen()),
+                        ),
                       ),
                     ],
                   );
@@ -275,285 +271,6 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showAddDevoteeDialog(BuildContext context, WidgetRef ref) {
-    final nameCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final addressCtrl = TextEditingController();
-    bool isSaving = false;
-    String? errorText;
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Row(
-              children: [
-                Icon(Icons.person_add_alt_1, color: AppColors.maroon700),
-                SizedBox(width: 8),
-                Text('Add New Devotee', style: TextStyle(fontFamily: 'Fraunces', fontWeight: FontWeight.bold, fontSize: 18)),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (errorText != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.expenseBg, borderRadius: BorderRadius.circular(8)),
-                        child: Text(errorText!, style: const TextStyle(color: AppColors.expense, fontSize: 12.5)),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    const Text('Enter devotee details to add them to the Kovil records:', style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft)),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: nameCtrl,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Devotee Full Name *',
-                        hintText: 'e.g. கார்த்திக் / Ramaswamy',
-                        prefixIcon: Icon(Icons.person_outline, size: 20),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: phoneCtrl,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Mobile Phone Number',
-                        hintText: 'e.g. 9876543210',
-                        prefixIcon: Icon(Icons.phone_outlined, size: 20),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: addressCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Address / Town',
-                        hintText: 'e.g. தூத்துக்குடி',
-                        prefixIcon: Icon(Icons.location_on_outlined, size: 20),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogCtx).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton.icon(
-                onPressed: isSaving
-                    ? null
-                    : () async {
-                        final name = nameCtrl.text.trim();
-                        if (name.isEmpty) {
-                          setDialogState(() => errorText = 'Devotee name is required.');
-                          return;
-                        }
-                        setDialogState(() {
-                          isSaving = true;
-                          errorText = null;
-                        });
-
-                        try {
-                          final member = await ref.read(memberServiceProvider).create(
-                                name: name,
-                                phone: phoneCtrl.text.trim(),
-                                address: addressCtrl.text.trim(),
-                              );
-                          if (!ctx.mounted) return;
-                          Navigator.of(dialogCtx).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Devotee "${member.name}" added successfully!')),
-                          );
-                        } catch (e) {
-                          setDialogState(() {
-                            isSaving = false;
-                            errorText = e.toString();
-                          });
-                        }
-                      },
-                icon: isSaving
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.check, size: 18),
-                label: const Text('Save Devotee'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  void _showDeleteDevoteeDialog(BuildContext context, WidgetRef ref) {
-    MemberModel? selectedMember;
-    final searchCtrl = TextEditingController();
-    bool isDeleting = false;
-    String? errorText;
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Row(
-              children: [
-                Icon(Icons.person_remove_outlined, color: AppColors.expense),
-                SizedBox(width: 8),
-                Text('Delete Devotee', style: TextStyle(fontFamily: 'Fraunces', fontWeight: FontWeight.bold, fontSize: 18)),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (errorText != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: AppColors.expenseBg, borderRadius: BorderRadius.circular(8)),
-                        child: Text(errorText!, style: const TextStyle(color: AppColors.expense, fontSize: 12.5)),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    const Text('Search and select a devotee to remove from Kovil records:', style: TextStyle(fontSize: 12.5, color: AppColors.inkSoft)),
-                    const SizedBox(height: 14),
-
-                    TypeAheadField<MemberModel>(
-                      controller: searchCtrl,
-                      builder: (context, controller, focusNode) {
-                        return TextField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Search Devotee Name or Phone',
-                            hintText: 'Type devotee name...',
-                            prefixIcon: Icon(Icons.search, size: 20),
-                          ),
-                        );
-                      },
-                      suggestionsCallback: (pattern) async {
-                        if (pattern.trim().isEmpty) return [];
-                        return await ref.read(memberServiceProvider).search(pattern.trim());
-                      },
-                      itemBuilder: (context, suggestion) {
-                        return ListTile(
-                          dense: true,
-                          title: Text(suggestion.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                            [
-                              if (suggestion.phone.isNotEmpty) suggestion.phone,
-                              if (suggestion.address.isNotEmpty) suggestion.address,
-                            ].join(' · '),
-                            style: const TextStyle(fontSize: 11.5, color: AppColors.inkSoft),
-                          ),
-                        );
-                      },
-                      onSelected: (suggestion) {
-                        setDialogState(() {
-                          selectedMember = suggestion;
-                          searchCtrl.text = suggestion.name;
-                          errorText = null;
-                        });
-                      },
-                    ),
-
-                    if (selectedMember != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.expenseBg,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.expense.withValues(alpha: 0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.warning_amber_rounded, color: AppColors.expense, size: 20),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    selectedMember!.name,
-                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.expense),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (selectedMember!.phone.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text('Phone: ${selectedMember!.phone}', style: const TextStyle(fontSize: 12.5, color: AppColors.ink)),
-                              ),
-                            if (selectedMember!.address.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text('Address: ${selectedMember!.address}', style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft)),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogCtx).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton.icon(
-                onPressed: (selectedMember == null || isDeleting)
-                    ? null
-                    : () async {
-                        setDialogState(() {
-                          isDeleting = true;
-                          errorText = null;
-                        });
-
-                        try {
-                          await ref.read(memberServiceProvider).delete(selectedMember!.id);
-                          if (!ctx.mounted) return;
-                          Navigator.of(dialogCtx).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Devotee "${selectedMember!.name}" deleted successfully.')),
-                          );
-                        } catch (e) {
-                          setDialogState(() {
-                            isDeleting = false;
-                            errorText = e.toString();
-                          });
-                        }
-                      },
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.expense, foregroundColor: Colors.white),
-                icon: isDeleting
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.delete_forever, size: 18),
-                label: const Text('Delete Devotee'),
-              ),
-            ],
-          );
-        },
       ),
     );
   }

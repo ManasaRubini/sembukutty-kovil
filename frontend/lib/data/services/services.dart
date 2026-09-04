@@ -297,6 +297,17 @@ class StaffService {
 class MemberService {
   final _client = ApiClient.instance;
 
+  Future<List<MemberModel>> getAll({int limit = 100}) async {
+    try {
+      final r = await _client.get('/api/members', params: {'limit': limit});
+      final list = (r.data as List).map((e) => MemberModel.fromJson(e)).toList();
+      await OfflineStorageService.saveMembersList(list);
+      return list;
+    } catch (_) {
+      return await OfflineStorageService.searchMembers('');
+    }
+  }
+
   Future<List<MemberModel>> search(String query) async {
     try {
       final r = await _client.get('/api/members/search', params: {'q': query, 'limit': 25});

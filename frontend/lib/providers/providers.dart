@@ -31,6 +31,19 @@ final setupStatusProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   return ref.read(authServiceProvider).getSetupStatus();
 });
 
+// ─── Devotee List ─────────────────────────────────────────────────────────────
+final devoteeQueryProvider = StateProvider<String>((ref) => '');
+
+final devoteeListProvider = FutureProvider<List<MemberModel>>((ref) async {
+  final query = ref.watch(devoteeQueryProvider).trim();
+  final service = ref.read(memberServiceProvider);
+  if (query.isEmpty) {
+    return service.getAll(limit: 100);
+  } else {
+    return service.search(query);
+  }
+});
+
 // ─── Opening Balance ──────────────────────────────────────────────────────────
 final openingBalanceProvider = FutureProvider<OpeningBalanceModel?>((ref) async {
   return ref.read(openingBalanceServiceProvider).get();

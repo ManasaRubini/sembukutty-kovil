@@ -246,6 +246,10 @@ class BalanceReport(BaseModel):
     bank_balance: float
     total_cash: float
     grand_total: float
+    cash_collections: float = 0.0
+    cash_expenses: float = 0.0
+    cash_deposited: float = 0.0
+    cash_withdrawn: float = 0.0
     per_staff: list[StaffCashRow] = []
 
 

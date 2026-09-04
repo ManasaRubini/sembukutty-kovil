@@ -214,6 +214,8 @@ async def compute_balance_report(db, scope: str, staff_id: Optional[str], as_of:
 
     if scope == "all":
         staff_list = all_staff
+        scoped_txns = all_txns
+        effective_opening_cash = opening_cash
         total_cash = overall_cash_balance_from_txns(opening_cash, all_txns)
     else:
         target_id = (
@@ -226,11 +228,26 @@ async def compute_balance_report(db, scope: str, staff_id: Optional[str], as_of:
             staff_list = [all_staff[0]]
             target_id = all_staff[0].id
 
-        s_txns = [t for t in all_txns if t.staff_id == target_id]
+        scoped_txns = [t for t in all_txns if t.staff_id == target_id]
         is_holder = (cash_holder_id == target_id) if cash_holder_id else (target_id == first_staff_id)
+        effective_opening_cash = opening_cash if is_holder else 0.0
         total_cash = cash_balance_for_staff_from_txns(
-            opening_cash, is_holder, s_txns
+            opening_cash, is_holder, scoped_txns
         )
+
+    # Calculate cash flow breakdown for the selected scope
+    cash_collections = sum(
+        float(t.amount) for t in scoped_txns if t.type in ("tax", "donation") and t.mode == "cash"
+    )
+    cash_expenses = sum(
+        float(t.amount) for t in scoped_txns if t.type == "expense" and t.mode == "cash"
+    )
+    cash_deposited = sum(
+        float(t.amount) for t in scoped_txns if t.type == "transfer" and t.direction == "deposit"
+    )
+    cash_withdrawn = sum(
+        float(t.amount) for t in scoped_txns if t.type == "transfer" and t.direction == "withdraw"
+    )
 
     per_staff = []
     # Always include all active staff in per_staff list when scope=all, or specific staff when scoped
@@ -245,9 +262,13 @@ async def compute_balance_report(db, scope: str, staff_id: Optional[str], as_of:
 
     return {
         "opening_bank": opening_bank,
-        "opening_cash": opening_cash,
+        "opening_cash": effective_opening_cash,
         "bank_balance": bank_bal,
         "total_cash": total_cash,
         "grand_total": bank_bal + total_cash,
+        "cash_collections": cash_collections,
+        "cash_expenses": cash_expenses,
+        "cash_deposited": cash_deposited,
+        "cash_withdrawn": cash_withdrawn,
         "per_staff": per_staff,
     }

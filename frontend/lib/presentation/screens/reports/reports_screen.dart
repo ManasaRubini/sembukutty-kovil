@@ -320,6 +320,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     } else {
       // Balance sheet
       final perStaff = (_reportData!['per_staff'] as List? ?? []);
+      final openingCash = _asDouble(_reportData!['opening_cash']);
+      final cashCollections = _asDouble(_reportData!['cash_collections']);
+      final cashExpenses = _asDouble(_reportData!['cash_expenses']);
+      final cashDeposited = _asDouble(_reportData!['cash_deposited']);
+      final cashWithdrawn = _asDouble(_reportData!['cash_withdrawn']);
+      final totalCash = _asDouble(_reportData!['total_cash']);
+      final openingBank = _asDouble(_reportData!['opening_bank']);
+      final bankBalance = _asDouble(_reportData!['bank_balance']);
+      final grandTotal = _asDouble(_reportData!['grand_total']);
+
       return Column(
         children: [
           Card(
@@ -329,18 +339,31 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SectionTitle('Bank'),
-                  _Line('Opening bank balance', formatINR(_asDouble(_reportData!['opening_bank']))),
-                  _Line('Total Bank Balance', formatINR(_asDouble(_reportData!['bank_balance'])), isTotal: true),
-                  const SectionTitle('Cash'),
-                  _Line('Opening cash balance', formatINR(_asDouble(_reportData!['opening_cash']))),
-                  _Line('Total Cash Balance', formatINR(_asDouble(_reportData!['total_cash'])), isTotal: true),
+                  _Line('Opening bank balance', formatINR(openingBank)),
+                  _Line('Total Bank Balance', formatINR(bankBalance), isTotal: true),
+                  const Divider(height: 24),
+                  const SectionTitle('Cash Flow & Balance'),
+                  _Line('Opening cash balance', formatINR(openingCash)),
+                  _Line('+ Tax & Donations (Cash)', formatINR(cashCollections), isSub: true),
+                  _Line('+ Cash Withdrawn from Bank', formatINR(cashWithdrawn), isSub: true),
+                  _Line('- Expenses (Cash)', formatINR(cashExpenses), isSub: true),
+                  _Line('- Cash Deposited to Bank', formatINR(cashDeposited), isSub: true),
+                  const Divider(height: 16),
+                  _Line(
+                    _scope == 'all' ? 'Total Cash Balance (All members)' : 'Cash in Hand',
+                    formatINR(totalCash),
+                    isTotal: true,
+                    color: AppColors.maroon900,
+                  ),
+                  const Divider(height: 24),
                   const SectionTitle('Grand Total'),
-                  _Line('Bank + Cash', formatINR(_asDouble(_reportData!['grand_total'])), isTotal: true),
+                  _Line('Bank + Cash', formatINR(grandTotal), isTotal: true, color: AppColors.income),
                 ],
               ),
             ),
           ),
-          if (perStaff.isNotEmpty) ...[
+          if (perStaff.isNotEmpty && _scope == 'all') ...[
+            const SizedBox(height: 12),
             const SectionTitle('Cash in hand — by billing member'),
             Card(
               child: ListView.separated(

@@ -89,7 +89,7 @@ async def get_opening(db):
 async def get_all_staff(db):
     from sqlalchemy import select
     from app.models.staff import Staff
-    result = await db.execute(select(Staff).where(Staff.is_active == True))
+    result = await db.execute(select(Staff).where(Staff.is_active == True).order_by(Staff.created_at, Staff.id))
     return list(result.scalars().all())
 
 

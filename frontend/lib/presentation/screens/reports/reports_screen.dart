@@ -59,7 +59,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         data = await ref.read(reportsServiceProvider).balances(
               scope: _scope,
               staffId: currentStaffId,
-              asOf: _asOf,
+              dateFrom: _dateFrom,
+              dateTo: _dateTo,
             );
       }
       setState(() {
@@ -86,68 +87,41 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             style: TextStyle(fontFamily: 'Fraunces', fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.ink),
           ),
           const SizedBox(height: 12),
-          // Filter bar
+          // Filter bar (Unified Date Range for all tabs)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
-              child: Column(
+              child: Row(
                 children: [
-                  if (_reportTab == 'balance')
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: TextEditingController(text: _asOf),
-                            decoration: const InputDecoration(labelText: 'As of date', suffixIcon: Icon(Icons.calendar_today, size: 16)),
-                            readOnly: true,
-                            onTap: () async {
-                              final p = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
-                              if (p != null) setState(() => _asOf = p.toIso8601String().substring(0, 10));
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton(
-                          onPressed: _runReport,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold500, foregroundColor: AppColors.maroon900),
-                          child: const Text('Generate'),
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: TextEditingController(text: _dateFrom),
-                            decoration: const InputDecoration(labelText: 'From date', suffixIcon: Icon(Icons.calendar_today, size: 16)),
-                            readOnly: true,
-                            onTap: () async {
-                              final p = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
-                              if (p != null) setState(() => _dateFrom = p.toIso8601String().substring(0, 10));
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: TextEditingController(text: _dateTo),
-                            decoration: const InputDecoration(labelText: 'To date', suffixIcon: Icon(Icons.calendar_today, size: 16)),
-                            readOnly: true,
-                            onTap: () async {
-                              final p = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
-                              if (p != null) setState(() => _dateTo = p.toIso8601String().substring(0, 10));
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: _runReport,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold500, foregroundColor: AppColors.maroon900),
-                          child: const Text('Generate'),
-                        ),
-                      ],
+                  Expanded(
+                    child: TextField(
+                      controller: TextEditingController(text: _dateFrom),
+                      decoration: const InputDecoration(labelText: 'From date', suffixIcon: Icon(Icons.calendar_today, size: 16)),
+                      readOnly: true,
+                      onTap: () async {
+                        final p = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
+                        if (p != null) setState(() => _dateFrom = p.toIso8601String().substring(0, 10));
+                      },
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: TextEditingController(text: _dateTo),
+                      decoration: const InputDecoration(labelText: 'To date', suffixIcon: Icon(Icons.calendar_today, size: 16)),
+                      readOnly: true,
+                      onTap: () async {
+                        final p = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2030));
+                        if (p != null) setState(() => _dateTo = p.toIso8601String().substring(0, 10));
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _runReport,
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold500, foregroundColor: AppColors.maroon900),
+                    child: const Text('Generate'),
+                  ),
                 ],
               ),
             ),
@@ -339,32 +313,34 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SectionTitle('Bank'),
-                  _Line('Opening bank balance', formatINR(openingBank)),
-                  _Line('Total Bank Balance', formatINR(bankBalance), isTotal: true),
+                  _Line('Opening bank balance (${formatDate(_dateFrom)})', formatINR(openingBank)),
+                  _Line('Closing Bank Balance (${formatDate(_dateTo)})', formatINR(bankBalance), isTotal: true),
                   const Divider(height: 24),
                   const SectionTitle('Cash Flow & Balance'),
-                  _Line('Opening cash balance', formatINR(openingCash)),
+                  _Line('Opening cash balance (${formatDate(_dateFrom)})', formatINR(openingCash)),
                   _Line('+ Tax & Donations (Cash)', formatINR(cashCollections), isSub: true),
                   _Line('+ Cash Withdrawn from Bank', formatINR(cashWithdrawn), isSub: true),
                   _Line('- Expenses (Cash)', formatINR(cashExpenses), isSub: true),
                   _Line('- Cash Deposited to Bank', formatINR(cashDeposited), isSub: true),
                   const Divider(height: 16),
                   _Line(
-                    _scope == 'all' ? 'Total Cash Balance (All members)' : 'Cash in Hand',
+                    _scope == 'all'
+                        ? 'Closing Cash Balance — All members (${formatDate(_dateTo)})'
+                        : 'Closing Cash in Hand (${formatDate(_dateTo)} EOD)',
                     formatINR(totalCash),
                     isTotal: true,
                     color: AppColors.maroon900,
                   ),
                   const Divider(height: 24),
                   const SectionTitle('Grand Total'),
-                  _Line('Bank + Cash', formatINR(grandTotal), isTotal: true, color: AppColors.income),
+                  _Line('Bank + Cash (${formatDate(_dateTo)} EOD)', formatINR(grandTotal), isTotal: true, color: AppColors.income),
                 ],
               ),
             ),
           ),
           if (perStaff.isNotEmpty && _scope == 'all') ...[
             const SizedBox(height: 12),
-            const SectionTitle('Cash in hand — by billing member'),
+            const SectionTitle('Closing cash in hand — by billing member'),
             Card(
               child: ListView.separated(
                 shrinkWrap: true,

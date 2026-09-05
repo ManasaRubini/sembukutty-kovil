@@ -524,12 +524,16 @@ class ReportsService {
   Future<Map<String, dynamic>> balances({
     required String scope,
     String? staffId,
+    String? dateFrom,
+    String? dateTo,
     String? asOf,
   }) async {
     try {
       final r = await _client.get('/api/reports/balances', params: {
         'scope': scope,
         if (staffId != null) 'staff_id': staffId,
+        if (dateFrom != null) 'date_from': dateFrom,
+        if (dateTo != null) 'date_to': dateTo,
         if (asOf != null) 'as_of': asOf,
       });
       return r.data as Map<String, dynamic>;

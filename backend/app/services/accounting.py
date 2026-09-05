@@ -192,31 +192,53 @@ async def compute_dashboard(db, staff_id: Optional[str] = None) -> dict:
     }
 
 
-async def compute_balance_report(db, scope: str, staff_id: Optional[str], as_of: str) -> dict:
+async def compute_balance_report(
+    db,
+    scope: str,
+    staff_id: Optional[str],
+    as_of: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+) -> dict:
     from sqlalchemy import select
     from app.models.transaction import Transaction
     opening = await get_opening(db)
     all_staff = await get_all_staff(db)
 
-    opening_bank = float(opening.bank_balance) if opening else 0.0
-    opening_cash = float(opening.cash_balance) if opening else 0.0
+    initial_opening_bank = float(opening.bank_balance) if opening else 0.0
+    initial_opening_cash = float(opening.cash_balance) if opening else 0.0
     cash_holder_id = opening.cash_holder_staff_id if opening else None
-
-    # All txns up to as_of
-    all_result = await db.execute(
-        select(Transaction).where(Transaction.date <= as_of)
-    )
-    all_txns = list(all_result.scalars().all())
-
-    bank_bal = bank_balance_from_txns(opening_bank, all_txns)
 
     first_staff_id = all_staff[0].id if all_staff else None
 
+    # Target end date (defaults to today)
+    end_date = date_to or as_of or DateType.today().isoformat()
+    start_date = date_from
+
+    # Query all transactions up to end_date
+    all_result = await db.execute(
+        select(Transaction).where(Transaction.date <= DateType.fromisoformat(end_date))
+    )
+    all_txns = list(all_result.scalars().all())
+
+    # Split into prior txns (before start_date) and period txns (between start_date and end_date)
+    if start_date:
+        s_date = DateType.fromisoformat(start_date)
+        prior_txns = [t for t in all_txns if t.date < s_date]
+        period_txns = [t for t in all_txns if t.date >= s_date]
+    else:
+        prior_txns = []
+        period_txns = all_txns
+
+    # Calculate Opening & Closing Bank Balance
+    opening_bank = bank_balance_from_txns(initial_opening_bank, prior_txns)
+    bank_bal = bank_balance_from_txns(initial_opening_bank, all_txns)
+
     if scope == "all":
         staff_list = all_staff
-        scoped_txns = all_txns
-        effective_opening_cash = opening_cash
-        total_cash = overall_cash_balance_from_txns(opening_cash, all_txns)
+        period_scoped_txns = period_txns
+        effective_opening_cash = overall_cash_balance_from_txns(initial_opening_cash, prior_txns)
+        total_cash = overall_cash_balance_from_txns(initial_opening_cash, all_txns)
     else:
         target_id = (
             staff_id
@@ -228,35 +250,40 @@ async def compute_balance_report(db, scope: str, staff_id: Optional[str], as_of:
             staff_list = [all_staff[0]]
             target_id = all_staff[0].id
 
-        scoped_txns = [t for t in all_txns if t.staff_id == target_id]
         is_holder = (cash_holder_id == target_id) if cash_holder_id else (target_id == first_staff_id)
-        effective_opening_cash = opening_cash if is_holder else 0.0
+        
+        prior_scoped_txns = [t for t in prior_txns if t.staff_id == target_id]
+        period_scoped_txns = [t for t in period_txns if t.staff_id == target_id]
+        all_scoped_txns = [t for t in all_txns if t.staff_id == target_id]
+
+        effective_opening_cash = cash_balance_for_staff_from_txns(
+            initial_opening_cash, is_holder, prior_scoped_txns
+        )
         total_cash = cash_balance_for_staff_from_txns(
-            opening_cash, is_holder, scoped_txns
+            initial_opening_cash, is_holder, all_scoped_txns
         )
 
-    # Calculate cash flow breakdown for the selected scope
+    # Calculate cash flow breakdown for the period (between start_date and end_date)
     cash_collections = sum(
-        float(t.amount) for t in scoped_txns if t.type in ("tax", "donation") and t.mode == "cash"
+        float(t.amount) for t in period_scoped_txns if t.type in ("tax", "donation") and t.mode == "cash"
     )
     cash_expenses = sum(
-        float(t.amount) for t in scoped_txns if t.type == "expense" and t.mode == "cash"
+        float(t.amount) for t in period_scoped_txns if t.type == "expense" and t.mode == "cash"
     )
     cash_deposited = sum(
-        float(t.amount) for t in scoped_txns if t.type == "transfer" and t.direction == "deposit"
+        float(t.amount) for t in period_scoped_txns if t.type == "transfer" and t.direction == "deposit"
     )
     cash_withdrawn = sum(
-        float(t.amount) for t in scoped_txns if t.type == "transfer" and t.direction == "withdraw"
+        float(t.amount) for t in period_scoped_txns if t.type == "transfer" and t.direction == "withdraw"
     )
 
     per_staff = []
-    # Always include all active staff in per_staff list when scope=all, or specific staff when scoped
     display_staff_list = all_staff if scope == "all" else staff_list
     for s in display_staff_list:
-        s_txns = [t for t in all_txns if t.staff_id == s.id]
-        is_holder = (cash_holder_id == s.id) if cash_holder_id else (s.id == first_staff_id)
+        s_all_txns = [t for t in all_txns if t.staff_id == s.id]
+        is_holder_s = (cash_holder_id == s.id) if cash_holder_id else (s.id == first_staff_id)
         cash = cash_balance_for_staff_from_txns(
-            opening_cash, is_holder, s_txns
+            initial_opening_cash, is_holder_s, s_all_txns
         )
         per_staff.append({"staff_id": s.id, "staff_name": s.name, "cash_balance": cash})
 

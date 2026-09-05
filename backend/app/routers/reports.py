@@ -100,10 +100,17 @@ async def expenses_report(
 async def balances_report(
     scope: str = Query("all"),
     staff_id: Optional[str] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
     as_of: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    today = DateType.today().isoformat()
-    as_of_date = as_of or today
-    res = await compute_balance_report(db, scope, staff_id, as_of_date)
+    res = await compute_balance_report(
+        db,
+        scope=scope,
+        staff_id=staff_id,
+        as_of=as_of,
+        date_from=date_from,
+        date_to=date_to,
+    )
     return BalanceReport(**res)

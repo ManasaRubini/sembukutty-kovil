@@ -118,7 +118,28 @@ class _TransferFormScreenState extends ConsumerState<TransferFormScreen> {
       return;
     }
 
+    // Pre-check balance from local dashboard state before calling API
+    final dashboard = ref.read(dashboardProvider(widget.staffId)).value;
+    if (dashboard != null) {
+      if (_selectedDirection == 'deposit' && amount > dashboard.myCash) {
+        showInsufficientBalanceDialog(
+          context,
+          title: 'Insufficient Cash in Hand',
+          message: 'Insufficient Cash in Hand! Your available cash balance is ${formatINR(dashboard.myCash)}, but requested deposit is ${formatINR(amount)}.',
+        );
+        return;
+      } else if (_selectedDirection == 'withdraw' && amount > dashboard.bankBalance) {
+        showInsufficientBalanceDialog(
+          context,
+          title: 'Insufficient Bank Balance',
+          message: 'Insufficient Bank Balance! Temple available bank balance is ${formatINR(dashboard.bankBalance)}, but requested withdrawal is ${formatINR(amount)}.',
+        );
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
+
 
     try {
       final txn = await ref.read(transactionServiceProvider).create({

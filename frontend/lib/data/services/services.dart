@@ -405,10 +405,19 @@ class TransactionService {
     try {
       final r = await _client.post('/api/transactions', data: data);
       return TransactionModel.fromJson(r.data);
-    } catch (_) {
+    } on DioException catch (e) {
+      if (e.response != null) {
+        // Server returned an error response (e.g. 400 Insufficient Balance, Duplicate Entry, UTR error)
+        // Do NOT save as offline transaction! Throw the server error message.
+        throw ApiException.fromDioError(e);
+      }
+      // Network connection error -> fallback to offline storage
       return await OfflineStorageService.saveOfflineTransaction(data);
+    } catch (e) {
+      throw ApiException(e.toString());
     }
   }
+
 
   Future<List<TransactionModel>> list({
     String? staffId,

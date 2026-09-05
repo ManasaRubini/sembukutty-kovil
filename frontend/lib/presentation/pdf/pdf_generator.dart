@@ -30,6 +30,7 @@ class PdfGenerator {
         <div class="row"><span class="label">Phone Number</span><span class="val">${_escapeHtml(txn.memberPhone.isNotEmpty ? txn.memberPhone : '—')}</span></div>
         <div class="row"><span class="label">Purpose</span><span class="val">${_escapeHtml(txn.purpose.isNotEmpty ? txn.purpose : docTitle)}</span></div>
         <div class="row"><span class="label">Mode of Payment</span><span class="val">${txn.mode == 'cash' ? 'Cash' : 'Bank Transfer'}</span></div>
+        ${txn.utrNumber.isNotEmpty ? '<div class="row"><span class="label">UTR No. / Ref No.</span><span class="val">' + _escapeHtml(txn.utrNumber) + '</span></div>' : ''}
       ''');
     } else if (isVoucher) {
       detailsRows.write('''

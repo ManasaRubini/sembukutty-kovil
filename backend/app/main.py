@@ -33,6 +33,12 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Ensure utr_number column exists on existing transactions table
+            try:
+                from sqlalchemy import text
+                await conn.execute(text("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS utr_number VARCHAR(100) DEFAULT '';"))
+            except Exception:
+                pass
         
         # Auto-seed Kovil Devotees into database if members table is empty
         async with AsyncSessionLocal() as session:

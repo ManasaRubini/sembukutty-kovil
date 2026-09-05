@@ -116,6 +116,7 @@ class TransactionModel {
   final String paidTo;
   final String? direction;  // deposit | withdraw
   final String? serialNumber;
+  final String utrNumber;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -135,6 +136,7 @@ class TransactionModel {
     this.paidTo = '',
     this.direction,
     this.serialNumber,
+    this.utrNumber = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -155,6 +157,7 @@ class TransactionModel {
         paidTo: j['paid_to'] as String? ?? '',
         direction: j['direction'] as String?,
         serialNumber: j['serial_number'] as String?,
+        utrNumber: j['utr_number'] as String? ?? '',
         createdAt: DateTime.parse(j['created_at'] as String),
         updatedAt: DateTime.parse(j['updated_at'] as String),
       );
@@ -175,6 +178,7 @@ class TransactionModel {
         'paid_to': paidTo,
         'direction': direction,
         'serial_number': serialNumber,
+        'utr_number': utrNumber,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };

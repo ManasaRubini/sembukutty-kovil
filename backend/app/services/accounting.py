@@ -172,6 +172,7 @@ async def compute_dashboard(db, staff_id: Optional[str] = None) -> dict:
             "paid_to": t.paid_to or "",
             "direction": t.direction or "",
             "serial_number": t.serial_number or "",
+            "utr_number": t.utr_number or "",
             "created_at": t.created_at,
             "updated_at": t.updated_at,
         }

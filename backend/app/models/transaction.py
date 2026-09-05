@@ -49,5 +49,6 @@ class Transaction(Base):
     paid_to: Mapped[str] = mapped_column(String(512), nullable=True, default="")
     direction: Mapped[str] = mapped_column(String(10), nullable=True)  # deposit | withdraw
     serial_number: Mapped[str] = mapped_column(String(20), nullable=True, index=True)
+    utr_number: Mapped[str] = mapped_column(String(100), nullable=True, default="", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

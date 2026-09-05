@@ -18,7 +18,7 @@ def _txn_to_out(t: Transaction) -> dict:
         "member_phone": t.member_phone, "address": t.address,
         "purpose": t.purpose, "remarks": t.remarks,
         "paid_to": t.paid_to, "direction": t.direction,
-        "serial_number": t.serial_number,
+        "serial_number": t.serial_number, "utr_number": t.utr_number or "",
         "created_at": t.created_at, "updated_at": t.updated_at,
     }
 
@@ -50,6 +50,7 @@ async def list_documents(
         term = f"%{search.strip()}%"
         q = q.where(or_(
             Transaction.serial_number.ilike(term),
+            Transaction.utr_number.ilike(term),
             Transaction.member_name.ilike(term),
             Transaction.member_phone.ilike(term),
             Transaction.remarks.ilike(term),

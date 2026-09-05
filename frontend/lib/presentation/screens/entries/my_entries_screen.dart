@@ -140,6 +140,19 @@ class _MyEntriesScreenState extends ConsumerState<MyEntriesScreen> {
                               Text(formatDate(txn.date), style: const TextStyle(fontSize: 12)),
                               TagChip.fromType(txn.type),
                               if (txn.mode != null) TagChip.fromMode(txn.mode!),
+                              if (txn.utrNumber.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.paper,
+                                    border: Border.all(color: AppColors.line),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'UTR: ${txn.utrNumber}',
+                                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.inkSoft),
+                                  ),
+                                ),
                               if (isAdmin)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

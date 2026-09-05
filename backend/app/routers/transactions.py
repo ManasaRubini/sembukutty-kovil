@@ -49,6 +49,33 @@ async def create_transaction(body: TransactionCreate, db: AsyncSession = Depends
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
 
+    txn_date = DateType.fromisoformat(body.date)
+    utr_clean = (body.utr_number or "").strip()
+
+    # 1. Check UTR uniqueness for Bank payments
+    if body.mode == "bank" and utr_clean:
+        utr_check = await db.execute(select(Transaction).where(Transaction.utr_number == utr_clean))
+        if utr_check.scalars().first():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Duplicate transaction rejected! A transaction with UTR No. '{utr_clean}' already exists."
+            )
+
+    # 2. General duplicate entry check (same date, amount, type, member_name, purpose)
+    dup_q = select(Transaction).where(
+        Transaction.date == txn_date,
+        Transaction.amount == body.amount,
+        Transaction.type == body.type,
+        Transaction.member_name == (body.member_name or ""),
+        Transaction.purpose == (body.purpose or ""),
+    )
+    dup_check = await db.execute(dup_q)
+    if dup_check.scalars().first():
+        raise HTTPException(
+            status_code=400,
+            detail="Duplicate entry rejected! An identical transaction with the same date, devotee, purpose and amount already exists."
+        )
+
     # Auto-save or update Devotee record in members database table
     member_id_final = body.member_id
     if body.member_name and body.member_name.strip() and body.member_name.strip() != "Walk-in / Unspecified":
@@ -93,8 +120,6 @@ async def create_transaction(body: TransactionCreate, db: AsyncSession = Depends
     # Generate serial number atomically (within this transaction)
     serial = await next_serial(db, serial_type)
 
-    txn_date = DateType.fromisoformat(body.date)
-
     txn = Transaction(
         id=str(uuid.uuid4()),
         staff_id=body.staff_id,
@@ -111,6 +136,7 @@ async def create_transaction(body: TransactionCreate, db: AsyncSession = Depends
         paid_to=body.paid_to or "",
         direction=body.direction,
         serial_number=serial,
+        utr_number=utr_clean,
     )
     db.add(txn)
     await db.commit()
@@ -185,6 +211,7 @@ def _txn_to_out(t: Transaction) -> dict:
         "paid_to": t.paid_to,
         "direction": t.direction,
         "serial_number": t.serial_number,
+        "utr_number": t.utr_number or "",
         "created_at": t.created_at,
         "updated_at": t.updated_at,
     }

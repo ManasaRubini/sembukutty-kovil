@@ -27,12 +27,36 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
   final _addressCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
-  final _purposeCtrl = TextEditingController();
+  final _customPurposeCtrl = TextEditingController();
+  final _utrCtrl = TextEditingController();
   final _dateCtrl = TextEditingController(text: todayIso());
 
+  final List<String> _taxPurposeOptions = const [
+    'Annual Tax',
+    'Monthly Tax',
+    'Special Tax',
+    'Other',
+  ];
+
+  final List<String> _donationPurposeOptions = const [
+    'Temple Festival Donation',
+    'Renovation Donation',
+    'Annadhanam Donation',
+    'Pooja Donation',
+    'General Donation',
+    'Other',
+  ];
+
+  late String _selectedPurposeOption;
   MemberModel? _selectedMember;
   String? _selectedMode; // 'cash' | 'bank'
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPurposeOption = widget.type == 'tax' ? _taxPurposeOptions.first : _donationPurposeOptions.first;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +191,23 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                   selected: _selectedMode,
                   onChanged: (mode) => setState(() => _selectedMode = mode),
                 ),
+                if (_selectedMode == 'bank') ...[
+                  const SizedBox(height: 14),
+                  const Text('UTR No. / Bank Ref No.', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _utrCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. 123456789012 or UPI/IMPS Ref No.',
+                      prefixIcon: Icon(Icons.numbers, size: 18),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Unique UTR No. prevents duplicate bank transfer entries.',
+                    style: TextStyle(fontSize: 11.5, color: AppColors.inkSoft),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 const Text('Amount (₹)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 6),
@@ -178,12 +219,30 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                 const SizedBox(height: 14),
                 const Text('Purpose', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 6),
-                TextField(
-                  controller: _purposeCtrl,
-                  decoration: InputDecoration(
-                    hintText: widget.type == 'tax' ? 'e.g. Annual Temple Tax 2026' : 'e.g. Donation for Annadhanam',
+                DropdownButtonFormField<String>(
+                  value: _selectedPurposeOption,
+                  decoration: const InputDecoration(
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
+                  items: (widget.type == 'tax' ? _taxPurposeOptions : _donationPurposeOptions)
+                      .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedPurposeOption = val);
+                    }
+                  },
                 ),
+                if (_selectedPurposeOption == 'Other') ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _customPurposeCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'Type custom purpose',
+                      prefixIcon: Icon(Icons.edit_note, size: 18),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 const Text(
                   'A serially numbered receipt is generated automatically for this entry.',
@@ -218,6 +277,15 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
       return;
     }
 
+    final finalPurpose = _selectedPurposeOption == 'Other'
+        ? _customPurposeCtrl.text.trim()
+        : _selectedPurposeOption;
+
+    if (finalPurpose.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please specify a purpose')));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -235,7 +303,8 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
         'member_name': memberName,
         'member_phone': _phoneCtrl.text.trim(),
         'address': _addressCtrl.text.trim(),
-        'purpose': _purposeCtrl.text.trim(),
+        'purpose': finalPurpose,
+        'utr_number': _selectedMode == 'bank' ? _utrCtrl.text.trim() : '',
       });
 
       invalidateAllAccountingData(ref, widget.staffId);

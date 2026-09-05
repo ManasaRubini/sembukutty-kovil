@@ -65,6 +65,7 @@ class DocumentPreviewDialog extends StatelessWidget {
                       _field('Phone Number', txn.memberPhone.isNotEmpty ? txn.memberPhone : '—'),
                       _field('Purpose', txn.purpose.isNotEmpty ? txn.purpose : docTitle),
                       _field('Mode of Payment', txn.mode == 'cash' ? 'Cash' : 'Bank Transfer'),
+                      if (txn.utrNumber.isNotEmpty) _field('UTR No. / Ref No.', txn.utrNumber),
                     ] else if (isVoucher) ...[
                       _field('Paid To', txn.paidTo.isNotEmpty ? txn.paidTo : '—'),
                       _field('Purpose', txn.remarks.isNotEmpty ? txn.remarks : '—'),

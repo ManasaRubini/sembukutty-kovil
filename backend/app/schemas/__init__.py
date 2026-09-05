@@ -177,6 +177,7 @@ class TransactionCreate(BaseModel):
     remarks: Optional[str] = ""
     paid_to: Optional[str] = ""
     direction: Optional[str] = None  # deposit | withdraw
+    utr_number: Optional[str] = ""
 
 
 class TransactionOut(BaseModel):
@@ -195,6 +196,7 @@ class TransactionOut(BaseModel):
     paid_to: Optional[str]
     direction: Optional[str]
     serial_number: Optional[str]
+    utr_number: Optional[str] = ""
     created_at: datetime
     updated_at: datetime
 

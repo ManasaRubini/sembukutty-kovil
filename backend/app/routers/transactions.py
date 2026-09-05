@@ -10,6 +10,7 @@ from app.models.staff import Staff
 from app.models.member import Member
 from app.schemas import TransactionCreate, TransactionOut
 from app.services.serial import next_serial
+from app.services.accounting import get_current_bank_balance, get_current_staff_cash_balance
 from app.routers.auth import require_admin, get_current_user
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
@@ -117,6 +118,41 @@ async def create_transaction(body: TransactionCreate, db: AsyncSession = Depends
             status_code=400,
             detail="Duplicate entry rejected! An identical transaction with the same date, devotee, purpose and amount already exists."
         )
+
+    # 3. Balance verification (Cash in hand for cash expenses/deposits, Bank balance for bank expenses/withdrawals)
+    if body.type == "expense":
+        if body.mode == "cash":
+            current_cash = await get_current_staff_cash_balance(db, body.staff_id)
+            if body.amount > current_cash:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient Cash in Hand! Your available cash balance is ₹{current_cash:,.2f}, but requested expense is ₹{body.amount:,.2f}."
+                )
+        elif body.mode == "bank":
+            current_bank = await get_current_bank_balance(db)
+            if body.amount > current_bank:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient Bank Balance! Available bank balance is ₹{current_bank:,.2f}, but requested expense is ₹{body.amount:,.2f}."
+                )
+
+    elif body.type == "transfer":
+        if body.direction == "deposit":
+            # Cash deposit to bank -> reduces member's cash in hand
+            current_cash = await get_current_staff_cash_balance(db, body.staff_id)
+            if body.amount > current_cash:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient Cash in Hand! Your available cash balance is ₹{current_cash:,.2f}, but requested deposit is ₹{body.amount:,.2f}."
+                )
+        elif body.direction == "withdraw":
+            # Cash withdrawal from bank -> reduces temple bank balance
+            current_bank = await get_current_bank_balance(db)
+            if body.amount > current_bank:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient Bank Balance! Available bank balance is ₹{current_bank:,.2f}, but requested withdrawal is ₹{body.amount:,.2f}."
+                )
 
     # Auto-save or update Devotee record in members database table
     member_id_final = body.member_id

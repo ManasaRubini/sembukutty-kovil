@@ -300,3 +300,32 @@ async def compute_balance_report(
         "cash_withdrawn": cash_withdrawn,
         "per_staff": per_staff,
     }
+
+
+async def get_current_bank_balance(db) -> float:
+    from sqlalchemy import select
+    from app.models.transaction import Transaction
+    opening = await get_opening(db)
+    opening_bank = float(opening.bank_balance) if opening else 0.0
+    all_txns_result = await db.execute(select(Transaction))
+    all_txns = list(all_txns_result.scalars().all())
+    return bank_balance_from_txns(opening_bank, all_txns)
+
+
+async def get_current_staff_cash_balance(db, staff_id: str) -> float:
+    from sqlalchemy import select
+    from app.models.transaction import Transaction
+    opening = await get_opening(db)
+    opening_cash = float(opening.cash_balance) if opening else 0.0
+    cash_holder_id = opening.cash_holder_staff_id if opening else None
+
+    all_staff = await get_all_staff(db)
+    first_staff_id = all_staff[0].id if all_staff else None
+
+    all_txns_result = await db.execute(select(Transaction))
+    all_txns = list(all_txns_result.scalars().all())
+
+    my_txns = [t for t in all_txns if t.staff_id == staff_id]
+    is_holder = (cash_holder_id == staff_id) if cash_holder_id else (staff_id == first_staff_id)
+    return cash_balance_for_staff_from_txns(opening_cash, is_holder, my_txns)
+

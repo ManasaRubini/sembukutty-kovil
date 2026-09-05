@@ -288,3 +288,51 @@ class DirectionSelector extends StatelessWidget {
     );
   }
 }
+
+/// Modal dialog displaying insufficient cash or bank balance alert
+Future<void> showInsufficientBalanceDialog(
+  BuildContext context, {
+  required String title,
+  required String message,
+}) {
+  return showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppColors.expense, size: 28),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.maroon900,
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: Text(
+        message,
+        style: const TextStyle(fontSize: 14, color: AppColors.ink, height: 1.4),
+      ),
+      actions: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.maroon800,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('OK, Got It'),
+        ),
+      ],
+    ),
+  );
+}
+

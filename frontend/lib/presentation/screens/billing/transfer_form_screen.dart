@@ -139,7 +139,23 @@ class _TransferFormScreenState extends ConsumerState<TransferFormScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      final errStr = e.toString();
+      if (errStr.contains('Insufficient Cash')) {
+        showInsufficientBalanceDialog(
+          context,
+          title: 'Insufficient Cash in Hand',
+          message: errStr,
+        );
+      } else if (errStr.contains('Insufficient Bank')) {
+        showInsufficientBalanceDialog(
+          context,
+          title: 'Insufficient Bank Balance',
+          message: errStr,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errStr)));
+      }
     }
   }
+
 }

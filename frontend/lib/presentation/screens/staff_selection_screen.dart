@@ -27,8 +27,8 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
   String? _memberError;
 
   // Admin login controllers
-  final _adminUserCtrl = TextEditingController(text: 'admin');
-  final _adminPassCtrl = TextEditingController(text: 'kovil2024');
+  final _adminUserCtrl = TextEditingController();
+  final _adminPassCtrl = TextEditingController();
   bool _isAdminLoading = false;
   String? _adminError;
 
@@ -413,7 +413,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
-    final pinCtrl = TextEditingController(text: '1234');
+    final pinCtrl = TextEditingController();
     final otpCtrl = TextEditingController();
 
     int step = 1;

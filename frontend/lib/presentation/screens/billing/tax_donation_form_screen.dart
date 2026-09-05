@@ -51,11 +51,38 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
   MemberModel? _selectedMember;
   String? _selectedMode; // 'cash' | 'bank'
   bool _isLoading = false;
+  bool _isCheckingUtr = false;
+  String? _utrError;
 
   @override
   void initState() {
     super.initState();
     _selectedPurposeOption = widget.type == 'tax' ? _taxPurposeOptions.first : _donationPurposeOptions.first;
+  }
+
+  Future<void> _checkUtrStatus(String utr) async {
+    final clean = utr.trim();
+    if (clean.isEmpty) {
+      setState(() {
+        _utrError = null;
+        _isCheckingUtr = false;
+      });
+      return;
+    }
+    setState(() => _isCheckingUtr = true);
+    final res = await ref.read(transactionServiceProvider).checkUtr(clean);
+    if (!mounted) return;
+    if (res['already_billed'] == true) {
+      setState(() {
+        _utrError = res['message'] ?? 'Already Billed!';
+        _isCheckingUtr = false;
+      });
+    } else {
+      setState(() {
+        _utrError = null;
+        _isCheckingUtr = false;
+      });
+    }
   }
 
   @override
@@ -189,24 +216,63 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                 const SizedBox(height: 6),
                 PaymentModeSelector(
                   selected: _selectedMode,
-                  onChanged: (mode) => setState(() => _selectedMode = mode),
+                  onChanged: (mode) {
+                    setState(() => _selectedMode = mode);
+                    if (mode == 'bank' && _utrCtrl.text.isNotEmpty) {
+                      _checkUtrStatus(_utrCtrl.text);
+                    }
+                  },
                 ),
                 if (_selectedMode == 'bank') ...[
                   const SizedBox(height: 14),
-                  const Text('UTR No. / Bank Ref No.', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('UTR No. / Bank Ref No. *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      if (_isCheckingUtr)
+                        const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                    ],
+                  ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _utrCtrl,
-                    decoration: const InputDecoration(
+                    onChanged: (val) => _checkUtrStatus(val),
+                    decoration: InputDecoration(
                       hintText: 'e.g. 123456789012 or UPI/IMPS Ref No.',
-                      prefixIcon: Icon(Icons.numbers, size: 18),
+                      prefixIcon: const Icon(Icons.numbers, size: 18),
+                      errorText: _utrError != null ? 'Already Billed' : null,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Unique UTR No. prevents duplicate bank transfer entries.',
-                    style: TextStyle(fontSize: 11.5, color: AppColors.inkSoft),
-                  ),
+                  if (_utrError != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDE8E8),
+                        border: Border.all(color: AppColors.expense),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: AppColors.expense, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _utrError!,
+                              style: const TextStyle(color: AppColors.expense, fontWeight: FontWeight.bold, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Required for bank transfers. Prevents duplicate billing across multiple concurrent logins.',
+                      style: TextStyle(fontSize: 11.5, color: AppColors.inkSoft),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 14),
                 const Text('Amount (₹)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
@@ -252,7 +318,7 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _submit,
+                    onPressed: (_isLoading || _utrError != null) ? null : _submit,
                     child: _isLoading
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : const Text('Save entry'),
@@ -275,6 +341,18 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
     if (_selectedMode == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a payment mode')));
       return;
+    }
+
+    if (_selectedMode == 'bank') {
+      final utr = _utrCtrl.text.trim();
+      if (utr.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter the UTR / Bank Reference Number for Bank Transfer')));
+        return;
+      }
+      if (_utrError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_utrError!)));
+        return;
+      }
     }
 
     final finalPurpose = _selectedPurposeOption == 'Other'

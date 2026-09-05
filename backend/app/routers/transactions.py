@@ -39,6 +39,35 @@ def _validate_transaction(body: TransactionCreate):
             raise HTTPException(status_code=422, detail="Direction (deposit/withdraw) is required for transfer")
 
 
+@router.get("/check-utr/{utr_number}")
+async def check_utr(utr_number: str, db: AsyncSession = Depends(get_db)):
+    utr_clean = utr_number.strip()
+    if not utr_clean:
+        return {"already_billed": False}
+
+    q = (
+        select(Transaction, Staff.name)
+        .outerjoin(Staff, Transaction.staff_id == Staff.id)
+        .where(Transaction.utr_number == utr_clean)
+    )
+    result = await db.execute(q)
+    row = result.first()
+
+    if row:
+        txn, staff_name = row
+        return {
+            "already_billed": True,
+            "billed_by": staff_name or "Another Billing Member",
+            "date": str(txn.date),
+            "amount": float(txn.amount),
+            "serial_number": txn.serial_number or "",
+            "member_name": txn.member_name or "",
+            "message": f"Already Billed! This UTR No. ({utr_clean}) was billed by {staff_name or 'another member'} on {txn.date} for ₹{float(txn.amount):,.2f} (Receipt #{txn.serial_number or '—'})."
+        }
+
+    return {"already_billed": False}
+
+
 @router.post("", response_model=TransactionOut)
 async def create_transaction(body: TransactionCreate, db: AsyncSession = Depends(get_db)):
     _validate_transaction(body)
@@ -52,13 +81,26 @@ async def create_transaction(body: TransactionCreate, db: AsyncSession = Depends
     txn_date = DateType.fromisoformat(body.date)
     utr_clean = (body.utr_number or "").strip()
 
-    # 1. Check UTR uniqueness for Bank payments
-    if body.mode == "bank" and utr_clean:
-        utr_check = await db.execute(select(Transaction).where(Transaction.utr_number == utr_clean))
-        if utr_check.scalars().first():
+    # 1. Check UTR uniqueness & requirement for Bank payments
+    if body.mode == "bank":
+        if not utr_clean:
+            raise HTTPException(
+                status_code=422,
+                detail="UTR / Bank Reference Number is required for Bank Transfer payments."
+            )
+        
+        utr_check = await db.execute(
+            select(Transaction, Staff.name)
+            .outerjoin(Staff, Transaction.staff_id == Staff.id)
+            .where(Transaction.utr_number == utr_clean)
+        )
+        row = utr_check.first()
+        if row:
+            existing_txn, billed_by = row
+            staff_name = billed_by or "another billing member"
             raise HTTPException(
                 status_code=400,
-                detail=f"Duplicate transaction rejected! A transaction with UTR No. '{utr_clean}' already exists."
+                detail=f"Already Billed! UTR No. '{utr_clean}' was already billed by {staff_name} on {existing_txn.date} (Receipt #{existing_txn.serial_number or '—'})."
             )
 
     # 2. General duplicate entry check (same date, amount, type, member_name, purpose)

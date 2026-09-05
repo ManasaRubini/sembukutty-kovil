@@ -440,6 +440,15 @@ class TransactionService {
     }
   }
 
+  Future<Map<String, dynamic>> checkUtr(String utrNumber) async {
+    try {
+      final r = await _client.get('/api/transactions/check-utr/${Uri.encodeComponent(utrNumber)}');
+      return r.data as Map<String, dynamic>;
+    } catch (_) {
+      return {'already_billed': false};
+    }
+  }
+
   Future<void> delete(String id) async {
     try {
       await _client.delete('/api/transactions/$id');

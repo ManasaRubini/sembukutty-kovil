@@ -23,7 +23,9 @@ class Settings(BaseSettings):
 
     # Default Admin Credentials
     ADMIN_USERNAME: str = "admin"
-    ADMIN_PASSWORD: str = "kovil2024"
+    ADMIN_PASSWORD: str = "Muthu@2110"
+    ADMIN_EMAIL: str = "sembukuttysastha.kovil@gmail.com"
+
 
     # SMTP Email Credentials (Gmail fallback)
     SMTP_HOST: str = "smtp.gmail.com"

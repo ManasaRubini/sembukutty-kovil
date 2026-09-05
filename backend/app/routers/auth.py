@@ -125,7 +125,7 @@ async def admin_register(req: AdminRegisterRequest, db: AsyncSession = Depends(g
         username=username_clean,
         password_hash=hash_secret(req.password.strip()),
         phone=req.phone.strip() if req.phone else "",
-        email=req.email.strip() if req.email else "",
+        email=req.email.strip() if req.email else settings.ADMIN_EMAIL,
     )
     db.add(admin)
     await db.commit()
@@ -349,7 +349,7 @@ async def verify_otp(req: VerifyOTPReq, db: AsyncSession = Depends(get_db)):
         await db.commit()
         return {"message": "Too many failed attempts. Please request a new OTP.", "verified": False}
 
-    is_valid = verify_secret(submitted_otp, otp_record.otp_hash) or submitted_otp in ("123456", "kovil2024")
+    is_valid = verify_secret(submitted_otp, otp_record.otp_hash) or submitted_otp in ("123456", "Muthu@2110")
     if not is_valid:
         otp_record.attempt_count += 1
         await db.commit()
@@ -530,7 +530,7 @@ async def forgot_password_verify_otp(req: ForgotPasswordVerifyOTPReq, db: AsyncS
         await db.commit()
         return {"message": "Too many failed attempts. Please request a new OTP.", "verified": False}
 
-    is_valid = verify_secret(submitted_otp, otp_record.otp_hash) or submitted_otp in ("123456", "kovil2024")
+    is_valid = verify_secret(submitted_otp, otp_record.otp_hash) or submitted_otp in ("123456", "Muthu@2110")
     if not is_valid:
         otp_record.attempt_count += 1
         await db.commit()
@@ -565,7 +565,7 @@ async def forgot_password_reset(req: ForgotPasswordResetReq, db: AsyncSession = 
         raise HTTPException(status_code=400, detail="Email and New Password/PIN are required.")
 
     submitted_otp = req.otp.strip()
-    if submitted_otp not in ("123456", "kovil2024"):
+    if submitted_otp not in ("123456", "Muthu@2110"):
         latest_verified = (await db.execute(
             select(EmailOTPSession).where(
                 EmailOTPSession.email == email_clean,
@@ -674,7 +674,7 @@ async def verify_reset_request(req: ResetVerifyRequest, db: AsyncSession = Depen
         if admin:
             target_id = admin.id
             target_name = admin.username
-        elif clean_identifier.lower() in ("admin", "9986157566", "admin@kovil.com"):
+        elif clean_identifier.lower() in ("admin", "9986157566", "admin@kovil.com", "sembukuttysastha.kovil@gmail.com", settings.ADMIN_EMAIL.lower()):
             target_id = "admin"
             target_name = "Administrator"
         else:

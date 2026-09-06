@@ -73,7 +73,7 @@ class _AdminReauthDialogState extends ConsumerState<AdminReauthDialog> {
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -88,7 +88,7 @@ class _AdminReauthDialogState extends ConsumerState<AdminReauthDialog> {
                 const SizedBox(width: 14),
                 const Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Admin Access Required',

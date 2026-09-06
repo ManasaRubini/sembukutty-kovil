@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     # JWT Security Settings
     JWT_SECRET_KEY: str = "3f8a91b2c4e5d6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1"
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 5256000  # 10 years (long-lived for temple billing terminals)
+
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # CORS — allow all origins so Flutter mobile app (Android/iOS/Chrome) can reach Render Cloud API

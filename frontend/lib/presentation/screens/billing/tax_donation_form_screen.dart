@@ -31,20 +31,19 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
   final _utrCtrl = TextEditingController();
   final _dateCtrl = TextEditingController(text: todayIso());
 
-  final List<String> _taxPurposeOptions = const [
-    'Annual Tax',
-    'Monthly Tax',
-    'Special Tax',
-    'Other',
-  ];
-
   final List<String> _donationPurposeOptions = const [
-    'Temple Festival Donation',
-    'Renovation Donation',
-    'Annadhanam Donation',
-    'Pooja Donation',
-    'General Donation',
-    'Other',
+    'பௌர்ணமி பூஜை வகைக்காக ',
+    'வஸ்திரம் வகைக்காக ',
+    'பூ மற்றும் மாலை வகைக்காக ',
+    'அபிஷேக பொருள் வகைக்காக',
+    'பங்குனி உத்திர செலவு வகைக்காக ',
+    'அன்னதான வகைக்காக', 
+    'கணபதி ஹோமம் வகைக்காக', 
+    'பஞ்சாமிர்தம் வகைக்காக',
+    'தாம்பூல பை வகைக்காக',
+    'மங்கள இசை வகைக்காக',
+    'பொது வகைக்காக  ',
+    'இதர வகைக்காக',
   ];
 
   late String _selectedPurposeOption;
@@ -286,20 +285,7 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                     const Text('Amount (₹)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     if (widget.type == 'tax')
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.gold100,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: AppColors.gold300),
-                        ),
-                        child: const Text(
-                          'FIXED: ₹500',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.maroon900,
-                          ),
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
                       ),
                   ],
                 ),
@@ -312,8 +298,6 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                     hintText: '0.00',
                     filled: widget.type == 'tax',
                     fillColor: widget.type == 'tax' ? const Color(0xFFFAF6F0) : null,
-                    suffixText: widget.type == 'tax' ? 'Fixed Tax Amount' : null,
-                    suffixStyle: const TextStyle(fontSize: 12, color: AppColors.maroon700, fontWeight: FontWeight.bold),
                   ),
                 ),
 
@@ -340,7 +324,6 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                             color: AppColors.maroon900,
                           ),
                         ),
-                        Icon(Icons.lock_outline, size: 16, color: AppColors.maroon700),
                       ],
                     ),
                   ),
@@ -359,7 +342,7 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                       }
                     },
                   ),
-                  if (_selectedPurposeOption == 'Other') ...[
+                  if (_selectedPurposeOption == 'இதர வகைக்காக') ...[
                     const SizedBox(height: 10),
                     TextField(
                       controller: _customPurposeCtrl,

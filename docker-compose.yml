@@ -30,7 +30,7 @@ services:
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 10080
       CORS_ORIGINS: "*"
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-kovil2024}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Muthu@2110}
     depends_on:
       postgres:
         condition: service_healthy

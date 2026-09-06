@@ -10,7 +10,7 @@ Authenticate admin user and return JWT token.
   ```json
   {
     "username": "admin",
-    "password": "kovil2024"
+    "password": "Muthu@2110"
   }
   ```
 - **Response**: `200 OK`

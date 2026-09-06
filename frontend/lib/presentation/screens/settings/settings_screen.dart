@@ -394,28 +394,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       style: TextStyle(fontSize: 12, color: AppColors.inkSoft, height: 1.3),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.maroon800, foregroundColor: Colors.white),
-                          icon: const Icon(Icons.archive_outlined, size: 18),
-                          label: const Text('View Deleted Bills Archive (Database)'),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => const DeletedRecordsDialog(),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.expense),
-                          icon: const Icon(Icons.delete_forever, size: 18),
-                          label: const Text('Reset All Billing Data'),
-                          onPressed: _confirmResetAccountingData,
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isMobile = constraints.maxWidth < 600;
+                        if (isMobile) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.maroon800,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                icon: const Icon(Icons.archive_outlined, size: 18),
+                                label: const Text('View Deleted Bills Archive (Database)'),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => const DeletedRecordsDialog(),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.expense,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                icon: const Icon(Icons.delete_forever, size: 18),
+                                label: const Text('Reset All Billing Data'),
+                                onPressed: _confirmResetAccountingData,
+                              ),
+                            ],
+                          );
+                        } else {
+                          return Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.maroon800, foregroundColor: Colors.white),
+                                icon: const Icon(Icons.archive_outlined, size: 18),
+                                label: const Text('View Deleted Bills Archive (Database)'),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => const DeletedRecordsDialog(),
+                                  );
+                                },
+                              ),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.expense, foregroundColor: Colors.white),
+                                icon: const Icon(Icons.delete_forever, size: 18),
+                                label: const Text('Reset All Billing Data'),
+                                onPressed: _confirmResetAccountingData,
+                              ),
+                            ],
+                          );
+                        }
+                      },
                     ),
+
                   ],
                 ),
               ),

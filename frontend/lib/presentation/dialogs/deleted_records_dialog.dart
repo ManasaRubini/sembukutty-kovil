@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/providers.dart';
+import 'admin_reauth_dialog.dart';
 
 class DeletedRecordsDialog extends ConsumerStatefulWidget {
   const DeletedRecordsDialog({super.key});
@@ -72,13 +73,42 @@ class _DeletedRecordsDialogState extends ConsumerState<DeletedRecordsDialog> {
                   }
 
                   if (snapshot.hasError) {
+                    final isAuthErr = snapshot.error.toString().contains('Invalid or expired token') ||
+                        snapshot.error.toString().contains('Admin privileges required');
                     return Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          'Error loading deleted records: ${snapshot.error}',
-                          style: const TextStyle(color: AppColors.expense),
-                          textAlign: TextAlign.center,
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.lock_outline, color: AppColors.expense, size: 44),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Error loading deleted records: ${snapshot.error}',
+                              style: const TextStyle(color: AppColors.expense, fontWeight: FontWeight.w600),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.admin_panel_settings, size: 18),
+                              label: Text(isAuthErr ? 'Authorize / Login as Admin' : 'Retry Loading'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.maroon800,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              ),
+                              onPressed: () async {
+                                if (isAuthErr) {
+                                  final ok = await promptAdminReauth(context, ref);
+                                  if (ok) {
+                                    setState(() => _load());
+                                  }
+                                } else {
+                                  setState(() => _load());
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     );

@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../data/models/models.dart';
 import '../../../providers/providers.dart';
+import '../../dialogs/admin_reauth_dialog.dart';
 import '../../dialogs/deleted_records_dialog.dart';
 import '../../widgets/common_widgets.dart';
 import '../../widgets/stat_card.dart';
@@ -322,8 +323,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             );
                           },
                           loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, _) => Text('Error loading pending list: $e', style: const TextStyle(color: AppColors.expense, fontSize: 12)),
+                          error: (e, _) {
+                            final isAuthErr = e.toString().contains('Invalid or expired token') || e.toString().contains('Admin privileges required');
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Error loading pending list: $e',
+                                    style: const TextStyle(color: AppColors.expense, fontSize: 12.5),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.admin_panel_settings, size: 16),
+                                    label: Text(isAuthErr ? 'Authorize / Login as Admin' : 'Retry Loading'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.maroon800,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    ),
+                                    onPressed: () async {
+                                      if (isAuthErr) {
+                                        final ok = await promptAdminReauth(context, ref);
+                                        if (ok) {
+                                          ref.invalidate(pendingStaffListProvider);
+                                        }
+                                      } else {
+                                        ref.invalidate(pendingStaffListProvider);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
+
                       ],
                     ),
                   ),

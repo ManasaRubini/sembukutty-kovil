@@ -5,6 +5,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../widgets/common_widgets.dart';
+import 'admin_reauth_dialog.dart';
 
 class EditTransactionDialog extends ConsumerStatefulWidget {
   final TransactionModel txn;
@@ -285,9 +286,18 @@ class _EditTransactionDialogState extends ConsumerState<EditTransactionDialog> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      final errStr = e.toString();
+      if (errStr.contains('Invalid or expired token') || errStr.contains('Admin privileges required')) {
+        final reauthed = await promptAdminReauth(context, ref);
+        if (reauthed) {
+          _save(); // Retry save with new admin token
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errStr), backgroundColor: AppColors.expense),
+        );
+      }
     }
   }
+
 }

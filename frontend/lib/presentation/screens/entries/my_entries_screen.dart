@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../providers/providers.dart';
+import '../../dialogs/admin_reauth_dialog.dart';
 import '../../dialogs/document_preview_dialog.dart';
 import '../../dialogs/edit_transaction_dialog.dart';
 import '../../widgets/common_widgets.dart';
@@ -240,8 +241,42 @@ class _MyEntriesScreenState extends ConsumerState<MyEntriesScreen> {
           TextButton(
             onPressed: () async {
               Navigator.of(ctx).pop();
-              await ref.read(transactionServiceProvider).delete(id);
-              invalidateAllAccountingData(ref, staffId);
+              try {
+                await ref.read(transactionServiceProvider).delete(id);
+                invalidateAllAccountingData(ref, staffId);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Bill deleted and archived successfully'), backgroundColor: AppColors.income),
+                  );
+                }
+              } catch (e) {
+                if (!context.mounted) return;
+                final errStr = e.toString();
+                if (errStr.contains('Invalid or expired token') || errStr.contains('Admin privileges required')) {
+                  final reauthed = await promptAdminReauth(context, ref);
+                  if (reauthed) {
+                    try {
+                      await ref.read(transactionServiceProvider).delete(id);
+                      invalidateAllAccountingData(ref, staffId);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Bill deleted and archived successfully'), backgroundColor: AppColors.income),
+                        );
+                      }
+                    } catch (retryErr) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Delete failed: $retryErr'), backgroundColor: AppColors.expense),
+                        );
+                      }
+                    }
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Delete failed: $errStr'), backgroundColor: AppColors.expense),
+                  );
+                }
+              }
             },
             child: const Text('Delete', style: TextStyle(color: AppColors.expense)),
           ),
@@ -249,6 +284,7 @@ class _MyEntriesScreenState extends ConsumerState<MyEntriesScreen> {
       ),
     );
   }
+
 }
 
 class _Pill extends StatelessWidget {

@@ -96,78 +96,42 @@ class TempleHeader extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // Right actions (Notification bell + Staff/Admin Chip)
-                    Row(
-                      children: [
-                        // Notification Bell Icon with Badge
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(7),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.notifications_outlined, color: AppColors.gold100, size: 20),
-                            ),
-                            Positioned(
-                              top: 2,
-                              right: 2,
-                              child: Container(
-                                width: 9,
-                                height: 9,
+                    // Staff chip
+                    if (staffName != null && staffName!.isNotEmpty)
+                      InkWell(
+                        onTap: onStaffTap,
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            border: Border.all(color: AppColors.gold300.withValues(alpha: 0.4)),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFFF44336),
+                                  color: AppColors.gold500,
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 10),
-                        // Staff / Admin Dropdown Chip
-                        if (staffName != null && staffName!.isNotEmpty)
-                          InkWell(
-                            onTap: onStaffTap,
-                            borderRadius: BorderRadius.circular(999),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                border: Border.all(color: AppColors.gold300.withValues(alpha: 0.4)),
-                                borderRadius: BorderRadius.circular(999),
+                              const SizedBox(width: 8),
+                              Text(
+                                staffName!,
+                                style: const TextStyle(
+                                  color: AppColors.gold100,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 10,
-                                    backgroundColor: AppColors.gold500,
-                                    child: Icon(
-                                      isAdmin ? Icons.person : Icons.badge,
-                                      size: 13,
-                                      color: AppColors.maroon900,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    staffName!,
-                                    style: const TextStyle(
-                                      color: AppColors.gold100,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.keyboard_arrow_down, size: 14, color: AppColors.gold300),
-                                ],
-                              ),
-                            ),
+                            ],
                           ),
-                      ],
-                    ),
-
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),

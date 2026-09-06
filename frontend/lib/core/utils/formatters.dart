@@ -25,10 +25,18 @@ String formatDate(String? isoDate) {
   }
 }
 
-String formatDateTime(DateTime? dt) {
+String formatDateTime(dynamic dt) {
   if (dt == null) return '—';
-  return DateFormat('d MMM yyyy, h:mm a').format(dt.toLocal());
+  if (dt is DateTime) return DateFormat('d MMM yyyy, h:mm a').format(dt.toLocal());
+  if (dt is String) {
+    if (dt.isEmpty) return '—';
+    final parsed = DateTime.tryParse(dt);
+    if (parsed != null) return DateFormat('d MMM yyyy, h:mm a').format(parsed.toLocal());
+    return dt;
+  }
+  return '—';
 }
+
 
 String todayIso() => DateTime.now().toIso8601String().substring(0, 10);
 

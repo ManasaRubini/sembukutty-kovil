@@ -110,8 +110,10 @@ class _DeletedRecordsDialogState extends ConsumerState<DeletedRecordsDialog> {
                       final memberName = item['member_name'] ?? '';
                       final purpose = item['purpose'] ?? item['remarks'] ?? '';
                       final deletedBy = item['deleted_by'] ?? 'Admin';
-                      final deletedAt = item['deleted_at'] != null ? formatDateTime(item['deleted_at'].toString()) : '—';
+                      final rawDt = item['deleted_at'] != null ? DateTime.tryParse(item['deleted_at'].toString()) : null;
+                      final deletedAt = formatDateTime(rawDt);
                       final date = item['date'] ?? '';
+
 
                       return ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

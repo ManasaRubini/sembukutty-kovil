@@ -4,7 +4,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../providers/providers.dart';
 import '../../dialogs/document_preview_dialog.dart';
+import '../../dialogs/edit_transaction_dialog.dart';
 import '../../widgets/common_widgets.dart';
+
 
 class DocumentsScreen extends ConsumerStatefulWidget {
   const DocumentsScreen({super.key});
@@ -182,8 +184,47 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
                               ),
                               child: const Text('View', style: TextStyle(fontSize: 12)),
                             ),
+                            if (ref.watch(userRoleProvider) == 'admin') ...[
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                color: AppColors.maroon700,
+                                tooltip: 'Edit Entry (Admin only)',
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => EditTransactionDialog(txn: txn, staffId: txn.staffId ?? ''),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                color: AppColors.expense,
+                                tooltip: 'Delete Entry (Admin only)',
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Delete Entry'),
+                                      content: const Text('Delete this entry? This cannot be undone.'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+                                        TextButton(
+                                          onPressed: () async {
+                                            Navigator.of(ctx).pop();
+                                            await ref.read(transactionServiceProvider).delete(txn.id);
+                                            invalidateAllAccountingData(ref, txn.staffId ?? '');
+                                          },
+                                          child: const Text('Delete', style: TextStyle(color: AppColors.expense)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ],
                         ),
+
                       );
                     },
                   ),

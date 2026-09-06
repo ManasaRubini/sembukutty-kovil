@@ -458,6 +458,15 @@ class TransactionService {
     }
   }
 
+  Future<TransactionModel> update(String id, Map<String, dynamic> data) async {
+    try {
+      final r = await _client.put('/api/transactions/$id', data: data);
+      return TransactionModel.fromJson(r.data);
+    } on DioException catch (e) {
+      throw ApiException.fromDioError(e);
+    }
+  }
+
   Future<void> delete(String id) async {
     try {
       await _client.delete('/api/transactions/$id');
@@ -466,6 +475,7 @@ class TransactionService {
     }
   }
 }
+
 
 // ─── Dashboard Service ────────────────────────────────────────────────────────
 class DashboardService {

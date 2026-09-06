@@ -180,6 +180,21 @@ class TransactionCreate(BaseModel):
     utr_number: Optional[str] = ""
 
 
+class TransactionUpdate(BaseModel):
+    date: Optional[str] = None
+    amount: Optional[float] = None
+    mode: Optional[str] = None
+    member_name: Optional[str] = None
+    member_phone: Optional[str] = None
+    address: Optional[str] = None
+    purpose: Optional[str] = None
+    remarks: Optional[str] = None
+    paid_to: Optional[str] = None
+    direction: Optional[str] = None
+    utr_number: Optional[str] = None
+
+
+
 class TransactionOut(BaseModel):
     id: str
     staff_id: Optional[str]

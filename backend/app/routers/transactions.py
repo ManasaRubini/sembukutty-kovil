@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.transaction import Transaction
 from app.models.staff import Staff
 from app.models.member import Member
-from app.schemas import TransactionCreate, TransactionOut
+from app.schemas import TransactionCreate, TransactionUpdate, TransactionOut
 from app.services.serial import next_serial
 from app.services.accounting import get_current_bank_balance, get_current_staff_cash_balance
 from app.routers.auth import require_admin, get_current_user
@@ -257,6 +257,65 @@ async def get_transaction(txn_id: str, db: AsyncSession = Depends(get_db)):
     return _txn_to_out(txn)
 
 
+@router.put("/{txn_id}", response_model=TransactionOut)
+async def update_transaction(
+    txn_id: str,
+    body: TransactionUpdate,
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(require_admin),
+):
+    result = await db.execute(select(Transaction).where(Transaction.id == txn_id))
+    txn = result.scalar_one_or_none()
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    utr_clean = (body.utr_number or "").strip() if body.utr_number is not None else txn.utr_number
+
+    # Check UTR uniqueness if mode is bank and UTR changed
+    target_mode = body.mode or txn.mode
+    if target_mode == "bank" and utr_clean and utr_clean != txn.utr_number:
+        utr_check = await db.execute(
+            select(Transaction, Staff.name)
+            .outerjoin(Staff, Transaction.staff_id == Staff.id)
+            .where(Transaction.utr_number == utr_clean, Transaction.id != txn_id)
+        )
+        row = utr_check.first()
+        if row:
+            existing_txn, billed_by = row
+            staff_name = billed_by or "another billing member"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Already Billed! UTR No. '{utr_clean}' was already billed by {staff_name} on {existing_txn.date} (Receipt #{existing_txn.serial_number or '—'})."
+            )
+
+    if body.date:
+        txn.date = DateType.fromisoformat(body.date)
+    if body.amount is not None and body.amount > 0:
+        txn.amount = body.amount
+    if body.mode:
+        txn.mode = body.mode
+    if body.member_name is not None:
+        txn.member_name = body.member_name.strip()
+    if body.member_phone is not None:
+        txn.member_phone = body.member_phone.strip()
+    if body.address is not None:
+        txn.address = body.address.strip()
+    if body.purpose is not None:
+        txn.purpose = body.purpose.strip()
+    if body.remarks is not None:
+        txn.remarks = body.remarks.strip()
+    if body.paid_to is not None:
+        txn.paid_to = body.paid_to.strip()
+    if body.direction:
+        txn.direction = body.direction
+    if body.utr_number is not None:
+        txn.utr_number = utr_clean
+
+    await db.commit()
+    await db.refresh(txn)
+    return _txn_to_out(txn)
+
+
 @router.delete("/{txn_id}")
 async def delete_transaction(
     txn_id: str,
@@ -270,6 +329,7 @@ async def delete_transaction(
     await db.delete(txn)
     await db.commit()
     return {"message": "Transaction deleted"}
+
 
 
 def _txn_to_out(t: Transaction) -> dict:

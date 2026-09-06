@@ -4,7 +4,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../providers/providers.dart';
 import '../../dialogs/document_preview_dialog.dart';
+import '../../dialogs/edit_transaction_dialog.dart';
 import '../../widgets/common_widgets.dart';
+
 
 class MyEntriesScreen extends ConsumerStatefulWidget {
   const MyEntriesScreen({super.key});
@@ -182,6 +184,7 @@ class _MyEntriesScreenState extends ConsumerState<MyEntriesScreen> {
                                 IconButton(
                                   icon: const Icon(Icons.print_outlined, size: 18),
                                   color: AppColors.inkSoft,
+                                  tooltip: 'Print Receipt / Voucher',
                                   onPressed: () {
                                     showDialog(
                                       context: context,
@@ -189,13 +192,28 @@ class _MyEntriesScreenState extends ConsumerState<MyEntriesScreen> {
                                     );
                                   },
                                 ),
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 18),
-                                color: AppColors.expense,
-                                onPressed: () => _confirmDelete(context, ref, txn.id, queryStaffId ?? ''),
-                              ),
+                              if (isAdmin) ...[
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 18),
+                                  color: AppColors.maroon700,
+                                  tooltip: 'Edit Entry (Admin only)',
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => EditTransactionDialog(txn: txn, staffId: queryStaffId ?? ''),
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  color: AppColors.expense,
+                                  tooltip: 'Delete Entry (Admin only)',
+                                  onPressed: () => _confirmDelete(context, ref, txn.id, queryStaffId ?? ''),
+                                ),
+                              ],
                             ],
                           ),
+
                         );
                       },
                     ),

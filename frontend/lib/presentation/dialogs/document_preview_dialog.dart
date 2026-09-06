@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/amount_words.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
+import '../../providers/providers.dart';
 import '../pdf/pdf_generator.dart';
+import 'edit_transaction_dialog.dart';
 
-class DocumentPreviewDialog extends StatelessWidget {
+class DocumentPreviewDialog extends ConsumerWidget {
   final TransactionModel txn;
   final String staffName;
 
@@ -16,7 +19,8 @@ class DocumentPreviewDialog extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isAdmin = ref.watch(userRoleProvider) == 'admin';
     final isVoucher = txn.type == 'expense';
     final isTransfer = txn.type == 'transfer';
     final docTitle = isVoucher
@@ -24,6 +28,7 @@ class DocumentPreviewDialog extends StatelessWidget {
         : isTransfer
             ? 'Cash Transfer Note'
             : 'Receipt — ${txn.type == "tax" ? "Temple Tax Collection" : "Donation Collection"}';
+
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -100,7 +105,48 @@ class DocumentPreviewDialog extends StatelessWidget {
                       child: const Text('Close'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
+                  if (isAdmin) ...[
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 20),
+                      color: AppColors.maroon700,
+                      tooltip: 'Edit Entry (Admin only)',
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        showDialog(
+                          context: context,
+                          builder: (_) => EditTransactionDialog(txn: txn, staffId: txn.staffId ?? ''),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      color: AppColors.expense,
+                      tooltip: 'Delete Entry (Admin only)',
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Entry'),
+                            content: const Text('Delete this entry? This cannot be undone.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+                              TextButton(
+                                onPressed: () async {
+                                  Navigator.of(ctx).pop();
+                                  Navigator.of(context).pop();
+                                  await ref.read(transactionServiceProvider).delete(txn.id);
+                                  invalidateAllAccountingData(ref, txn.staffId ?? '');
+                                },
+                                child: const Text('Delete', style: TextStyle(color: AppColors.expense)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
@@ -111,6 +157,7 @@ class DocumentPreviewDialog extends StatelessWidget {
                   ),
                 ],
               ),
+
             ],
           ),
         ),

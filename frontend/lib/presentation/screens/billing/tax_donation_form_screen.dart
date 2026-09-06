@@ -57,11 +57,12 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedPurposeOption = widget.type == 'tax' ? _taxPurposeOptions.first : _donationPurposeOptions.first;
+    _selectedPurposeOption = widget.type == 'tax' ? 'தலைகட்டு வரி (Thalakattu Vari)' : _donationPurposeOptions.first;
     if (widget.type == 'tax') {
       _amountCtrl.text = '500';
     }
   }
+
 
 
   Future<void> _checkUtrStatus(String utr) async {
@@ -319,30 +320,57 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                 const SizedBox(height: 14),
                 const Text('Purpose', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: _selectedPurposeOption,
-                  decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                  items: (widget.type == 'tax' ? _taxPurposeOptions : _donationPurposeOptions)
-                      .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _selectedPurposeOption = val);
-                    }
-                  },
-                ),
-                if (_selectedPurposeOption == 'Other') ...[
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _customPurposeCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Type custom purpose',
-                      prefixIcon: Icon(Icons.edit_note, size: 18),
+                if (widget.type == 'tax') ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAF6F0),
+                      border: Border.all(color: AppColors.gold300),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text(
+                          'தலைகட்டு வரி (Thalakattu Vari)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.maroon900,
+                          ),
+                        ),
+                        Icon(Icons.lock_outline, size: 16, color: AppColors.maroon700),
+                      ],
                     ),
                   ),
+                ] else ...[
+                  DropdownButtonFormField<String>(
+                    value: _selectedPurposeOption,
+                    decoration: const InputDecoration(
+                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    items: _donationPurposeOptions
+                        .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _selectedPurposeOption = val);
+                      }
+                    },
+                  ),
+                  if (_selectedPurposeOption == 'Other') ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _customPurposeCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Type custom purpose',
+                        prefixIcon: Icon(Icons.edit_note, size: 18),
+                      ),
+                    ),
+                  ],
                 ],
+
                 const SizedBox(height: 8),
                 const Text(
                   'A serially numbered receipt is generated automatically for this entry.',
@@ -397,9 +425,15 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
       }
     }
 
-    final finalPurpose = _selectedPurposeOption == 'Other'
-        ? _customPurposeCtrl.text.trim()
-        : _selectedPurposeOption;
+    final String finalPurpose;
+    if (widget.type == 'tax') {
+      finalPurpose = 'தலைகட்டு வரி (Thalakattu Vari)';
+    } else {
+      finalPurpose = _selectedPurposeOption == 'Other'
+          ? _customPurposeCtrl.text.trim()
+          : _selectedPurposeOption;
+    }
+
 
     if (finalPurpose.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please specify a purpose')));

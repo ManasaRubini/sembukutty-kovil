@@ -11,6 +11,7 @@ from app.models.member import Member
 from app.models.opening_balance import OpeningBalance
 from app.models.transaction import Transaction
 from app.models.document_sequence import DocumentSequence
+from app.models.deleted_transaction import DeletedTransaction
 from app.routers.auth import require_admin
 import openpyxl
 
@@ -150,6 +151,48 @@ async def export_excel_backup(
         status_str = "Active" if (s.is_active and s.is_approved) else "Inactive/Pending"
         ws_staff.append([s.id, s.name, s.phone or "—", s.email or "—", status_str])
 
+    # Sheet 5: Deleted Bills
+    ws_del = wb.create_sheet(title="Deleted Bills Archive")
+    ws_del.append([
+        "Original Serial No", "Bill Date", "Transaction Type", "Billed By Staff",
+        "Deleted By", "Deleted Date & Time", "Member / Devotee", "Phone Number",
+        "Address", "Purpose / Remarks", "Paid To", "Payment Mode", "Amount (INR)"
+    ])
+    q_del = select(DeletedTransaction)
+    if date_from:
+        q_del = q_del.where(DeletedTransaction.date >= DateType.fromisoformat(date_from))
+    if date_to:
+        q_del = q_del.where(DeletedTransaction.date <= DateType.fromisoformat(date_to))
+    q_del = q_del.order_by(DeletedTransaction.deleted_at.desc())
+    del_res = await db.execute(q_del)
+    deleted_list = del_res.scalars().all()
+
+    for dt in deleted_list:
+        type_label = (
+            "Tax Collection" if dt.type == "tax"
+            else "Donation Collection" if dt.type == "donation"
+            else "Expense" if dt.type == "expense"
+            else "Transfer"
+        )
+        staff_name = staff_map.get(dt.staff_id, dt.staff_id or "—")
+        del_time_str = dt.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if dt.deleted_at else "—"
+        ws_del.append([
+            dt.serial_number or "—",
+            str(dt.date),
+            type_label,
+            staff_name,
+            dt.deleted_by or "Admin",
+            del_time_str,
+            dt.member_name or "—",
+            dt.member_phone or "—",
+            dt.address or "—",
+            dt.purpose or dt.remarks or "—",
+            dt.paid_to or "—",
+            dt.mode or "—",
+            float(dt.amount),
+        ])
+
+
     buffer = io.BytesIO()
     wb.save(buffer)
     buffer.seek(0)
@@ -175,12 +218,14 @@ async def export_backup(db: AsyncSession = Depends(get_db)):
     ob_res = await db.execute(select(OpeningBalance).limit(1))
     txns_res = await db.execute(select(Transaction))
     seqs_res = await db.execute(select(DocumentSequence))
+    del_res = await db.execute(select(DeletedTransaction))
 
     staff_list = staff_res.scalars().all()
     member_list = members_res.scalars().all()
     ob = ob_res.scalar_one_or_none()
     txn_list = txns_res.scalars().all()
     seq_list = seqs_res.scalars().all()
+    deleted_list = del_res.scalars().all()
 
     data = {
         "exportedAt": datetime.now(timezone.utc).isoformat(),
@@ -214,6 +259,31 @@ async def export_backup(db: AsyncSession = Depends(get_db)):
                 "created_at": t.created_at.isoformat(),
             }
             for t in txn_list
+        ],
+        "deletedTransactions": [
+            {
+                "id": dt.id,
+                "original_id": dt.original_id,
+                "staff_id": dt.staff_id,
+                "deleted_by": dt.deleted_by,
+                "deleted_at": dt.deleted_at.isoformat() if dt.deleted_at else None,
+                "type": dt.type,
+                "date": str(dt.date),
+                "amount": float(dt.amount),
+                "mode": dt.mode,
+                "member_id": dt.member_id,
+                "member_name": dt.member_name,
+                "member_phone": dt.member_phone,
+                "address": dt.address,
+                "purpose": dt.purpose,
+                "remarks": dt.remarks,
+                "paid_to": dt.paid_to,
+                "direction": dt.direction,
+                "serial_number": dt.serial_number,
+                "utr_number": dt.utr_number,
+                "created_at": dt.created_at.isoformat() if dt.created_at else None,
+            }
+            for dt in deleted_list
         ],
         "documentSequences": [
             {"id": s.id, "document_type": s.document_type, "current_number": s.current_number}
@@ -268,6 +338,32 @@ async def import_backup(payload: dict, db: AsyncSession = Depends(get_db)):
             serial_number=t.get("serial_number"),
         ))
 
+    if "deletedTransactions" in payload and isinstance(payload["deletedTransactions"], list):
+        await db.execute(delete(DeletedTransaction))
+        for dt in payload["deletedTransactions"]:
+            db.add(DeletedTransaction(
+                id=dt["id"],
+                original_id=dt.get("original_id", dt["id"]),
+                staff_id=dt.get("staff_id"),
+                deleted_by=dt.get("deleted_by", "Admin"),
+                deleted_at=datetime.fromisoformat(dt["deleted_at"]) if dt.get("deleted_at") else None,
+                type=dt["type"],
+                date=DateType.fromisoformat(dt["date"]) if dt.get("date") else None,
+                amount=dt["amount"],
+                mode=dt.get("mode"),
+                member_id=dt.get("member_id"),
+                member_name=dt.get("member_name", ""),
+                member_phone=dt.get("member_phone", ""),
+                address=dt.get("address", ""),
+                purpose=dt.get("purpose", ""),
+                remarks=dt.get("remarks", ""),
+                paid_to=dt.get("paid_to", ""),
+                direction=dt.get("direction"),
+                serial_number=dt.get("serial_number"),
+                utr_number=dt.get("utr_number", ""),
+                created_at=datetime.fromisoformat(dt["created_at"]) if dt.get("created_at") else None,
+            ))
+
     for s in payload.get("documentSequences", []):
         db.add(DocumentSequence(
             document_type=s["document_type"],
@@ -276,3 +372,4 @@ async def import_backup(payload: dict, db: AsyncSession = Depends(get_db)):
 
     await db.commit()
     return {"message": "Backup imported successfully"}
+

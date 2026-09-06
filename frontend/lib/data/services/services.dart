@@ -474,7 +474,17 @@ class TransactionService {
       throw ApiException.fromDioError(e);
     }
   }
+
+  Future<List<Map<String, dynamic>>> getDeletedTransactions() async {
+    try {
+      final r = await _client.get('/api/transactions/deleted/all');
+      return (r.data as List).cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      throw ApiException.fromDioError(e);
+    }
+  }
 }
+
 
 
 // ─── Dashboard Service ────────────────────────────────────────────────────────

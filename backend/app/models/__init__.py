@@ -5,7 +5,8 @@ from .transaction import Transaction
 from .document_sequence import DocumentSequence
 from .admin_user import AdminUser
 from .email_otp import EmailOTPSession
-from .audit_log import AuditLog  # Bug 8: Register AuditLog so its table is created on startup
+from .audit_log import AuditLog
+from .deleted_transaction import DeletedTransaction
 
 __all__ = [
     "Staff",
@@ -16,4 +17,6 @@ __all__ = [
     "AdminUser",
     "EmailOTPSession",
     "AuditLog",
+    "DeletedTransaction",
 ]
+

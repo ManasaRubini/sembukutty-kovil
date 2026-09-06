@@ -5,13 +5,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
+from datetime import datetime, timezone
 from app.models.transaction import Transaction
+from app.models.deleted_transaction import DeletedTransaction
+from app.models.audit_log import AuditLog
 from app.models.staff import Staff
 from app.models.member import Member
-from app.schemas import TransactionCreate, TransactionUpdate, TransactionOut
+from app.schemas import TransactionCreate, TransactionUpdate, TransactionOut, DeletedTransactionOut
 from app.services.serial import next_serial
 from app.services.accounting import get_current_bank_balance, get_current_staff_cash_balance
 from app.routers.auth import require_admin, get_current_user
+
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -326,9 +330,86 @@ async def delete_transaction(
     txn = result.scalar_one_or_none()
     if not txn:
         raise HTTPException(status_code=404, detail="Transaction not found")
+
+    admin_username = admin.get("sub", "admin")
+
+    # Archive to deleted_transactions table
+    deleted_rec = DeletedTransaction(
+        id=str(uuid.uuid4()),
+        original_id=txn.id,
+        staff_id=txn.staff_id,
+        type=txn.type,
+        date=txn.date,
+        amount=float(txn.amount),
+        mode=txn.mode,
+        member_id=txn.member_id,
+        member_name=txn.member_name or "",
+        member_phone=txn.member_phone or "",
+        address=txn.address or "",
+        purpose=txn.purpose or "",
+        remarks=txn.remarks or "",
+        paid_to=txn.paid_to or "",
+        direction=txn.direction,
+        serial_number=txn.serial_number,
+        utr_number=txn.utr_number or "",
+        deleted_by=admin_username,
+        deleted_at=datetime.now(timezone.utc),
+        created_at=txn.created_at,
+    )
+    db.add(deleted_rec)
+
+    # Log to audit_logs table
+    audit_rec = AuditLog(
+        id=str(uuid.uuid4()),
+        user_id=admin_username,
+        user_role="admin",
+        action="DELETE_TRANSACTION",
+        entity_type="transaction",
+        entity_id=txn.id,
+        details=f"Deleted {txn.type} entry #{txn.serial_number or ''} of ₹{float(txn.amount):,.2f}",
+        timestamp=datetime.now(timezone.utc),
+    )
+    db.add(audit_rec)
+
     await db.delete(txn)
     await db.commit()
-    return {"message": "Transaction deleted"}
+    return {"message": "Transaction deleted and archived into deleted_transactions table"}
+
+
+@router.get("/deleted/all", response_model=list[DeletedTransactionOut])
+async def list_deleted_transactions(
+    db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(require_admin),
+):
+    q = select(DeletedTransaction).order_by(DeletedTransaction.deleted_at.desc())
+    result = await db.execute(q)
+    deleted_list = result.scalars().all()
+    return [
+        {
+            "id": d.id,
+            "original_id": d.original_id,
+            "staff_id": d.staff_id,
+            "type": d.type,
+            "date": str(d.date),
+            "amount": float(d.amount),
+            "mode": d.mode,
+            "member_id": d.member_id,
+            "member_name": d.member_name or "",
+            "member_phone": d.member_phone or "",
+            "address": d.address or "",
+            "purpose": d.purpose or "",
+            "remarks": d.remarks or "",
+            "paid_to": d.paid_to or "",
+            "direction": d.direction,
+            "serial_number": d.serial_number,
+            "utr_number": d.utr_number or "",
+            "deleted_by": d.deleted_by,
+            "deleted_at": d.deleted_at,
+            "created_at": d.created_at,
+        }
+        for d in deleted_list
+    ]
+
 
 
 

@@ -218,6 +218,32 @@ class TransactionOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DeletedTransactionOut(BaseModel):
+    id: str
+    original_id: str
+    staff_id: Optional[str]
+    type: str
+    date: str
+    amount: float
+    mode: Optional[str]
+    member_id: Optional[str]
+    member_name: Optional[str]
+    member_phone: Optional[str]
+    address: Optional[str]
+    purpose: Optional[str]
+    remarks: Optional[str]
+    paid_to: Optional[str]
+    direction: Optional[str]
+    serial_number: Optional[str]
+    utr_number: Optional[str] = ""
+    deleted_by: str
+    deleted_at: datetime
+    created_at: Optional[datetime]
+
+    model_config = {"from_attributes": True}
+
+
+
 # ─── Dashboard ───────────────────────────────────────────────────────────────
 
 class DashboardOut(BaseModel):

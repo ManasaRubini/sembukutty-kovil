@@ -58,7 +58,11 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
   void initState() {
     super.initState();
     _selectedPurposeOption = widget.type == 'tax' ? _taxPurposeOptions.first : _donationPurposeOptions.first;
+    if (widget.type == 'tax') {
+      _amountCtrl.text = '500';
+    }
   }
+
 
   Future<void> _checkUtrStatus(String utr) async {
     final clean = utr.trim();
@@ -275,13 +279,43 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
                   ],
                 ],
                 const SizedBox(height: 14),
-                const Text('Amount (₹)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Amount (₹)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    if (widget.type == 'tax')
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.gold100,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: AppColors.gold300),
+                        ),
+                        child: const Text(
+                          'FIXED: ₹500',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.maroon900,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _amountCtrl,
+                  readOnly: widget.type == 'tax',
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(hintText: '0.00'),
+                  decoration: InputDecoration(
+                    hintText: '0.00',
+                    filled: widget.type == 'tax',
+                    fillColor: widget.type == 'tax' ? const Color(0xFFFAF6F0) : null,
+                    suffixText: widget.type == 'tax' ? 'Fixed Tax Amount' : null,
+                    suffixStyle: const TextStyle(fontSize: 12, color: AppColors.maroon700, fontWeight: FontWeight.bold),
+                  ),
                 ),
+
                 const SizedBox(height: 14),
                 const Text('Purpose', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 const SizedBox(height: 6),
@@ -333,11 +367,19 @@ class _TaxDonationFormScreenState extends ConsumerState<TaxDonationFormScreen> {
   }
 
   Future<void> _submit() async {
-    final amount = double.tryParse(_amountCtrl.text.trim());
-    if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
-      return;
+    final double amount;
+
+    if (widget.type == 'tax') {
+      amount = 500.0;
+    } else {
+      final parsed = double.tryParse(_amountCtrl.text.trim());
+      if (parsed == null || parsed <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid donation amount')));
+        return;
+      }
+      amount = parsed;
     }
+
     if (_selectedMode == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a payment mode')));
       return;

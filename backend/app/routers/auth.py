@@ -2,6 +2,7 @@ import secrets
 import random
 import uuid
 import logging
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,7 +18,7 @@ from app.database import get_db
 from app.models.staff import Staff
 from app.models.admin_user import AdminUser
 from app.models.email_otp import EmailOTPSession
-from app.services.email_service import send_otp_email
+from app.services.email_service import send_otp_email, send_admin_pending_approval_email
 from app.schemas import (
     LoginRequest,
     StaffLoginRequest,
@@ -197,6 +198,10 @@ async def staff_register(req: StaffRegisterRequest, db: AsyncSession = Depends(g
             existing.verification_code = verification_code
             existing.pin_hash = hash_secret(req.pin.strip() if req.pin else "1234")
             await db.commit()
+            try:
+                asyncio.create_task(send_admin_pending_approval_email(existing.name, existing.phone, existing.email))
+            except Exception as e:
+                logger.error(f"[STAFF-REGISTER NOTIF ERROR] {e}")
             return {
                 "message": "Registration updated! Awaiting Admin approval.",
                 "verification_code": verification_code,
@@ -217,6 +222,11 @@ async def staff_register(req: StaffRegisterRequest, db: AsyncSession = Depends(g
     )
     db.add(staff)
     await db.commit()
+
+    try:
+        asyncio.create_task(send_admin_pending_approval_email(staff.name, staff.phone, staff.email))
+    except Exception as e:
+        logger.error(f"[STAFF-REGISTER NOTIF ERROR] {e}")
 
     return {
         "message": "Registration submitted successfully! Verification Code sent to Admin for approval.",
@@ -358,12 +368,17 @@ async def verify_otp(req: VerifyOTPReq, db: AsyncSession = Depends(get_db)):
     otp_record.is_used = True
     otp_record.verified_at = now
 
-    staff = (await db.execute(select(Staff).where(Staff.email == email_clean, Staff.is_active == True))).scalar_one_or_none()
+    staff = (await db.execute(select(Staff).where(Staff.email == email_clean, Staff.is_active == True))).scalars().first()
     if staff:
         staff.is_email_verified = True
         staff.is_approved = False
-
-    await db.commit()
+        await db.commit()
+        try:
+            asyncio.create_task(send_admin_pending_approval_email(staff.name, staff.phone, staff.email))
+        except Exception as e:
+            logger.error(f"[VERIFY-OTP NOTIF ERROR] {e}")
+    else:
+        await db.commit()
 
     return {
         "message": "Email verified successfully",
@@ -413,7 +428,7 @@ async def resend_otp(req: ResendOTPReq, db: AsyncSession = Depends(get_db)):
     db.add(otp_record)
     await db.commit()
 
-    staff = (await db.execute(select(Staff).where(Staff.email == email_clean))).scalar_one_or_none()
+    staff = (await db.execute(select(Staff).where(Staff.email == email_clean))).scalars().first()
     member_name = staff.name if staff else ""
     await send_otp_email(email_clean, member_name, otp_code)
 
@@ -585,10 +600,10 @@ async def forgot_password_reset(req: ForgotPasswordResetReq, db: AsyncSession = 
         settings.ADMIN_PASSWORD = new_val
         msg = "Admin password reset successfully. You can now log in with your new password."
     else:
-        staff_res = (await db.execute(select(Staff).where(Staff.email == email_clean, Staff.is_active == True))).scalar_one_or_none()
+        staff_res = (await db.execute(select(Staff).where(Staff.email == email_clean, Staff.is_active == True))).scalars().first()
         if not staff_res:
             if req.staff_id:
-                staff_res = (await db.execute(select(Staff).where(Staff.id == req.staff_id))).scalar_one_or_none()
+                staff_res = (await db.execute(select(Staff).where(Staff.id == req.staff_id))).scalars().first()
 
         if not staff_res:
             raise HTTPException(status_code=404, detail="Member account not found.")

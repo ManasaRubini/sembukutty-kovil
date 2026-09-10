@@ -199,3 +199,107 @@ async def send_otp_email(to_email: str, member_name: str, otp: str) -> bool:
 
     # 3. Fallback to Gmail SMTP on background thread
     return await asyncio.to_thread(_send_via_smtp_sync, to_email, member_name, otp)
+
+
+def _admin_approval_html_body(member_name: str, member_phone: str, member_email: str) -> str:
+    return f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; background:#f5f5f5;">
+        <div style="max-width:520px;margin:30px auto;background:#fff;padding:30px;border-radius:12px;border:1px solid #e0e0e0;">
+          <h2 style="color:#721c24;text-align:center;margin-bottom:4px;">Sembukutty Sastha Kovil</h2>
+          <p style="text-align:center;color:#888;font-size:13px;margin-top:0;">Billing &amp; Accounts Admin Notification</p>
+          <hr style="border:none;border-top:1px solid #f0e0e0;margin:16px 0;">
+          <h3 style="color:#721c24;">🔔 New Member Registration Request</h3>
+          <p>A new billing member has registered and verified their email address:</p>
+          <div style="background:#fff9e6;border:1px solid #ffeeba;padding:16px;border-radius:8px;margin:16px 0;">
+            <p style="margin:4px 0;"><strong>Name:</strong> {member_name}</p>
+            <p style="margin:4px 0;"><strong>Mobile:</strong> {member_phone or 'N/A'}</p>
+            <p style="margin:4px 0;"><strong>Email:</strong> {member_email or 'N/A'}</p>
+          </div>
+          <p>Please log into Kovil Billing, open <strong>Settings &rarr; Pending Member Approvals</strong>, and click <strong>Approve</strong> to grant billing permissions.</p>
+          <hr style="border:none;border-top:1px solid #f0e0e0;margin:16px 0;">
+          <p style="font-size:11px;color:#bbb;text-align:center;">Sembukutty Sastha Kovil — Billing &amp; Accounts System</p>
+        </div>
+      </body>
+    </html>
+    """
+
+
+async def send_admin_pending_approval_email(member_name: str, member_phone: str, member_email: str) -> bool:
+    """
+    Notifies Admin (sembukuttysastha.kovil@gmail.com) when a new member registers and needs approval.
+    """
+    admin_email = getattr(settings, "ADMIN_EMAIL", "sembukuttysastha.kovil@gmail.com").strip() or "sembukuttysastha.kovil@gmail.com"
+    subject = f"🔔 New Member Registration Pending Approval: {member_name}"
+    html = _admin_approval_html_body(member_name, member_phone, member_email)
+
+    # 1. Try Brevo API first
+    brevo_key = getattr(settings, "BREVO_API_KEY", "").strip()
+    if brevo_key:
+        sender_email = getattr(settings, "BREVO_SENDER_EMAIL", "").strip() or "sembukuttysastha.kovil@gmail.com"
+        payload = {
+            "sender": {"name": "Sembukutty Sastha Kovil", "email": sender_email},
+            "to": [{"email": admin_email, "name": "Admin"}],
+            "subject": subject,
+            "htmlContent": html,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                    json=payload,
+                )
+            if r.status_code in (200, 201, 202):
+                logger.info(f"[ADMIN NOTIF SUCCESS] Email sent to Admin {admin_email}")
+                return True
+        except Exception as e:
+            logger.error(f"[ADMIN NOTIF BREVO ERROR] {e}")
+
+    # 2. Try Resend API
+    resend_key = getattr(settings, "RESEND_API_KEY", "").strip()
+    if resend_key:
+        resend_from = getattr(settings, "RESEND_FROM_EMAIL", "").strip() or "onboarding@resend.dev"
+        payload = {
+            "from": f"Sembukutty Sastha Kovil <{resend_from}>",
+            "to": [admin_email],
+            "subject": subject,
+            "html": html,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                    json=payload,
+                )
+            if r.status_code in (200, 201):
+                logger.info(f"[ADMIN NOTIF RESEND SUCCESS] Email sent to Admin {admin_email}")
+                return True
+        except Exception as e:
+            logger.error(f"[ADMIN NOTIF RESEND ERROR] {e}")
+
+    # 3. Fallback to SMTP
+    def _send_smtp():
+        smtp_user = getattr(settings, "SMTP_USER", "").strip()
+        smtp_pass = getattr(settings, "SMTP_PASSWORD", "").strip()
+        if not smtp_user or not smtp_pass:
+            return False
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Sembukutty Sastha Kovil <{smtp_user}>"
+        msg["To"] = admin_email
+        msg.attach(MIMEText(html, "html"))
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=12.0) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, [admin_email], msg.as_string())
+            return True
+        except Exception as ex:
+            logger.error(f"[ADMIN NOTIF SMTP ERROR] {ex}")
+            return False
+
+    return await asyncio.to_thread(_send_smtp)
+

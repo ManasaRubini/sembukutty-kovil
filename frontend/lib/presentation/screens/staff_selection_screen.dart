@@ -678,6 +678,7 @@ class _StaffSelectionScreenState extends ConsumerState<StaffSelectionScreen> {
                               cooldownTimer?.cancel();
                               ref.invalidate(staffListProvider);
                               ref.invalidate(pendingStaffListProvider);
+                              ref.invalidate(setupStatusProvider);
 
                               if (!mounted) return;
                               Navigator.of(dialogCtx).pop();

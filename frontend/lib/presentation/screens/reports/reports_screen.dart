@@ -17,7 +17,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   String _reportTab = 'collections'; // 'collections' | 'expenses' | 'balance'
   String _dateFrom = firstOfMonth();
   String _dateTo = todayIso();
-  String _asOf = todayIso();
 
   bool _isLoading = false;
   Map<String, dynamic>? _reportData;

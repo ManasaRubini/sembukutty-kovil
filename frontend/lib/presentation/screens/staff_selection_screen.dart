@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
-import '../../data/models/models.dart';
 import '../../providers/providers.dart';
 import '../widgets/temple_header.dart';
 import 'main_shell.dart';

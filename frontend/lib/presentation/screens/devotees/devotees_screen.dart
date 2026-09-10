@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../../providers/providers.dart';
-import '../../widgets/common_widgets.dart';
 
 class DevoteesScreen extends ConsumerStatefulWidget {
   const DevoteesScreen({super.key});

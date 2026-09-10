@@ -29,9 +29,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _newStaffCtrl = TextEditingController();
-  final _apiUrlCtrl = TextEditingController(text: ApiConfig.baseUrl);
-
   String _exportFromDate = '';
   String _exportToDate = '';
 
@@ -69,7 +66,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final userRole = ref.watch(userRoleProvider);
     final isAdmin = userRole == 'admin';
     final staffListAsync = ref.watch(staffListProvider);
-    final obAsync = ref.watch(openingBalanceProvider);
     final dashAsync = staffId != null ? ref.watch(dashboardProvider(staffId)) : null;
 
     return SingleChildScrollView(
@@ -487,42 +483,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Future<void> _editOpening(String type, double currentVal) async {
-    final ctrl = TextEditingController(text: currentVal.toString());
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Edit Opening ${type == "bank" ? "Bank" : "Cash"} Balance'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Amount (₹)'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final val = double.tryParse(ctrl.text.trim());
-              if (val != null) {
-                if (type == 'bank') {
-                  await ref.read(openingBalanceServiceProvider).update(bankBalance: val);
-                } else {
-                  await ref.read(openingBalanceServiceProvider).update(cashBalance: val);
-                }
-                ref.invalidate(openingBalanceProvider);
-                final staffId = ref.read(currentStaffIdProvider);
-                if (staffId != null) ref.invalidate(dashboardProvider(staffId));
-              }
-              if (!ctx.mounted) return;
-              Navigator.of(ctx).pop();
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _renameStaff(StaffModel staff) async {
     final ctrl = TextEditingController(text: staff.name);
     await showDialog(
@@ -831,14 +791,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           dialogError = null;
                         });
 
-                        final messenger = ScaffoldMessenger.of(context);
                         try {
                           // Automatically download Excel backup named backup-1-[date].xlsx before reset
                           try {
                             await _downloadExcelBackup(prefix: 'backup-1');
                           } catch (_) {}
 
-                          final res = await ref.read(backupServiceProvider).resetAccountingData(
+                          await ref.read(backupServiceProvider).resetAccountingData(
                                 bankBalance: bankVal,
                                 cashBalance: cashVal,
                               );
@@ -906,25 +865,5 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         },
       ),
     );
-  }
-
-  Future<void> _downloadBackup() async {
-    try {
-      final data = await ref.read(backupServiceProvider).export();
-      final jsonStr = jsonEncode(data);
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('JSON Backup Data'),
-          content: SingleChildScrollView(child: Text(jsonStr, style: const TextStyle(fontSize: 10, fontFamily: 'monospace'))),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
-          ],
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    }
   }
 }

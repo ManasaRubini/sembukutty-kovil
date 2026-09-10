@@ -12,7 +12,6 @@ import 'reports/reports_screen.dart';
 import 'documents/documents_screen.dart';
 import 'settings/settings_screen.dart';
 import 'staff_selection_screen.dart';
-import 'opening_balance_screen.dart';
 
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});

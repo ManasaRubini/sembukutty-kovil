@@ -7,8 +7,8 @@ import '../../core/utils/formatters.dart';
 import '../../data/models/models.dart';
 
 class PdfGenerator {
-  /// Generate clean HTML for perfect Tamil & English text rendering
-  static String generateHtml(TransactionModel txn, String staffName) {
+  /// Generate PDF Uint8List bytes with pure-Dart pw.Document (works on Web, Windows, Android, iOS)
+  static Future<Uint8List> generatePdf(TransactionModel txn, String staffName) async {
     final isVoucher = txn.type == 'expense';
     final isTransfer = txn.type == 'transfer';
     final docTitle = isVoucher
@@ -21,196 +21,183 @@ class PdfGenerator {
     final amountInWords = amountToWords(txn.amount);
     final formattedDate = formatDateTime(txn.createdAt);
 
-    final detailsRows = StringBuffer();
-
-    if (!isVoucher && !isTransfer) {
-      detailsRows.write('''
-        <div class="row"><span class="label">Received From</span><span class="val">${_escapeHtml(txn.memberName.isNotEmpty ? txn.memberName : '—')}</span></div>
-        <div class="row"><span class="label">Address</span><span class="val">${_escapeHtml(txn.address.isNotEmpty ? txn.address : '—')}</span></div>
-        <div class="row"><span class="label">Phone Number</span><span class="val">${_escapeHtml(txn.memberPhone.isNotEmpty ? txn.memberPhone : '—')}</span></div>
-        <div class="row"><span class="label">Purpose</span><span class="val">${_escapeHtml(txn.purpose.isNotEmpty ? txn.purpose : docTitle)}</span></div>
-        <div class="row"><span class="label">Mode of Payment</span><span class="val">${txn.mode == 'cash' ? 'Cash' : 'Bank Transfer'}</span></div>
-        ${txn.utrNumber.isNotEmpty ? '<div class="row"><span class="label">UTR No. / Ref No.</span><span class="val">' + _escapeHtml(txn.utrNumber) + '</span></div>' : ''}
-      ''');
-    } else if (isVoucher) {
-      detailsRows.write('''
-        <div class="row"><span class="label">Paid To</span><span class="val">${_escapeHtml(txn.paidTo.isNotEmpty ? txn.paidTo : '—')}</span></div>
-        <div class="row"><span class="label">Purpose</span><span class="val">${_escapeHtml(txn.remarks.isNotEmpty ? txn.remarks : '—')}</span></div>
-        <div class="row"><span class="label">Paid From</span><span class="val">${txn.mode == 'cash' ? 'Cash' : 'Bank'}</span></div>
-      ''');
-    } else {
-      detailsRows.write('''
-        <div class="row"><span class="label">Transaction</span><span class="val">${txn.direction == 'deposit' ? 'Cash Deposited to Bank' : 'Cash Withdrawn from Bank'}</span></div>
-        <div class="row"><span class="label">Remarks</span><span class="val">${_escapeHtml(txn.remarks.isNotEmpty ? txn.remarks : '—')}</span></div>
-      ''');
+    pw.Font mainFont;
+    pw.Font boldFont;
+    try {
+      mainFont = await PdfGoogleFonts.notoSansTamilRegular();
+      boldFont = await PdfGoogleFonts.notoSansTamilBold();
+    } catch (_) {
+      try {
+        mainFont = await PdfGoogleFonts.latoRegular();
+        boldFont = await PdfGoogleFonts.latoBold();
+      } catch (_) {
+        mainFont = pw.Font.helvetica();
+        boldFont = pw.Font.helveticaBold();
+      }
     }
 
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;700&display=swap');
-    body {
-      font-family: 'Noto Sans Tamil', 'Segoe UI', Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      color: #1f2937;
-      background: #ffffff;
-    }
-    .card {
-      border: 2px solid #721c24;
-      border-radius: 12px;
-      padding: 24px;
-      max-width: 480px;
-      margin: 0 auto;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 16px;
-    }
-    .om {
-      font-size: 32px;
-      color: #721c24;
-      line-height: 1;
-      font-weight: bold;
-    }
-    .title {
-      font-size: 22px;
-      font-weight: bold;
-      color: #721c24;
-      margin: 6px 0 2px 0;
-    }
-    .subtitle {
-      font-size: 12px;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .divider {
-      border-bottom: 2px solid #721c24;
-      margin: 14px 0;
-    }
-    .thin-divider {
-      border-bottom: 1px solid #e5e7eb;
-      margin: 10px 0;
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin: 8px 0;
-      font-size: 13.5px;
-    }
-    .label {
-      color: #4b5563;
-      font-size: 13px;
-    }
-    .val {
-      font-weight: bold;
-      text-align: right;
-      max-width: 65%;
-      color: #111827;
-      word-break: break-word;
-    }
-    .amount-box {
-      text-align: center;
-      background: #fdf3f3;
-      border: 1px dashed #721c24;
-      border-radius: 10px;
-      padding: 14px;
-      margin: 16px 0;
-    }
-    .amount {
-      font-size: 28px;
-      font-weight: bold;
-      color: #721c24;
-    }
-    .words {
-      font-size: 12px;
-      font-style: italic;
-      color: #6b7280;
-      margin-top: 4px;
-    }
-    .footer {
-      margin-top: 18px;
-      font-size: 13px;
-    }
-    .sig-line {
-      margin-top: 16px;
-      color: #4b5563;
-      font-size: 12.5px;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">
-      <div class="om">ௐ</div>
-      <div class="title">Sembukutty Sastha Kovil</div>
-      <div class="subtitle">${_escapeHtml(docTitle)}</div>
-      <div class="divider"></div>
-    </div>
+    final doc = pw.Document();
 
-    <div class="row">
-      <span class="label">${txn.documentLabel} No.</span>
-      <span class="val">${_escapeHtml(txn.serialNumber ?? '—')}</span>
-    </div>
-    <div class="row">
-      <span class="label">Date & Time</span>
-      <span class="val">${_escapeHtml(formattedDate)}</span>
-    </div>
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a5,
+        margin: const pw.EdgeInsets.all(20),
+        build: (pw.Context context) {
+          return pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.maroon900, width: 2),
+              borderRadius: pw.BorderRadius.circular(10),
+            ),
+            padding: const pw.EdgeInsets.all(16),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                pw.Center(
+                  child: pw.Text(
+                    'Sembukutty Sastha Kovil',
+                    style: pw.TextStyle(
+                      font: boldFont,
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.maroon900,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Center(
+                  child: pw.Text(
+                    docTitle,
+                    style: pw.TextStyle(
+                      font: mainFont,
+                      fontSize: 11,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Divider(color: PdfColors.maroon900, thickness: 1.5),
+                pw.SizedBox(height: 8),
 
-    <div class="thin-divider"></div>
+                // Serial & Date
+                _buildRow('${txn.documentLabel} No.', txn.serialNumber ?? '—', mainFont, boldFont),
+                pw.SizedBox(height: 4),
+                _buildRow('Date & Time', formattedDate, mainFont, boldFont),
 
-    $detailsRows
+                pw.SizedBox(height: 8),
+                pw.Divider(color: PdfColors.grey300, thickness: 0.8),
+                pw.SizedBox(height: 8),
 
-    <div class="amount-box">
-      <div class="amount">$amountFormatted</div>
-      <div class="words">${_escapeHtml(amountInWords)}</div>
-    </div>
+                // Type-specific details
+                if (!isVoucher && !isTransfer) ...[
+                  _buildRow('Received From', txn.memberName.isNotEmpty ? txn.memberName : '—', mainFont, boldFont),
+                  pw.SizedBox(height: 4),
+                  _buildRow('Address', txn.address.isNotEmpty ? txn.address : '—', mainFont, boldFont),
+                  pw.SizedBox(height: 4),
+                  _buildRow('Phone Number', txn.memberPhone.isNotEmpty ? txn.memberPhone : '—', mainFont, boldFont),
+                  pw.SizedBox(height: 4),
+                  _buildRow('Purpose', txn.purpose.isNotEmpty ? txn.purpose : docTitle, mainFont, boldFont),
+                  pw.SizedBox(height: 4),
+                  _buildRow('Mode of Payment', txn.mode == 'cash' ? 'Cash' : 'Bank Transfer', mainFont, boldFont),
+                  if (txn.utrNumber.isNotEmpty) ...[
+                    pw.SizedBox(height: 4),
+                    _buildRow('UTR No. / Ref No.', txn.utrNumber, mainFont, boldFont),
+                  ],
+                ] else if (isVoucher) ...[
+                  _buildRow('Paid To', txn.paidTo.isNotEmpty ? txn.paidTo : '—', mainFont, boldFont),
+                  pw.SizedBox(height: 4),
+                  _buildRow('Purpose', txn.remarks.isNotEmpty ? txn.remarks : '—', mainFont, boldFont),
+                  pw.SizedBox(height: 4),
+                  _buildRow('Paid From', txn.mode == 'cash' ? 'Cash' : 'Bank', mainFont, boldFont),
+                ] else ...[
+                  _buildRow('Transaction', txn.direction == 'deposit' ? 'Cash Deposited to Bank' : 'Cash Withdrawn from Bank', mainFont, boldFont),
+                  pw.SizedBox(height: 4),
+                  _buildRow('Remarks', txn.remarks.isNotEmpty ? txn.remarks : '—', mainFont, boldFont),
+                ],
 
-    <div class="thin-divider"></div>
+                pw.SizedBox(height: 12),
 
-    <div class="row">
-      <span class="label">Handled by</span>
-      <span class="val">${_escapeHtml(staffName)}</span>
-    </div>
-    <div class="sig-line">Signature: ______________________</div>
-  </div>
-</body>
-</html>
-''';
+                // Amount Box
+                pw.Container(
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.amber50,
+                    border: pw.Border.all(color: PdfColors.maroon900, style: pw.BorderStyle.dashed),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  child: pw.Column(
+                    children: [
+                      pw.Text(
+                        amountFormatted,
+                        style: pw.TextStyle(
+                          font: boldFont,
+                          fontSize: 22,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.maroon900,
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        amountInWords,
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(
+                          font: mainFont,
+                          fontSize: 10,
+                          fontStyle: pw.FontStyle.italic,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                pw.SizedBox(height: 12),
+                pw.Divider(color: PdfColors.grey300, thickness: 0.8),
+                pw.SizedBox(height: 8),
+
+                // Footer
+                _buildRow('Handled by', staffName, mainFont, boldFont),
+                pw.SizedBox(height: 14),
+                pw.Text(
+                  'Signature: ______________________',
+                  style: pw.TextStyle(font: mainFont, fontSize: 10, color: PdfColors.grey700),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    return doc.save();
   }
 
-  static String _escapeHtml(String text) {
-    return text
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
-  }
-
-  /// Generate PDF Uint8List bytes with proper Tamil complex script shaping
-  static Future<Uint8List> generatePdf(TransactionModel txn, String staffName) async {
-    final htmlString = generateHtml(txn, staffName);
-    return await Printing.convertHtml(
-      format: PdfPageFormat.a5,
-      html: htmlString,
+  static pw.Widget _buildRow(String label, String value, pw.Font mainFont, pw.Font boldFont) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(font: mainFont, fontSize: 11, color: PdfColors.grey700),
+        ),
+        pw.SizedBox(width: 10),
+        pw.Expanded(
+          child: pw.Text(
+            value,
+            textAlign: pw.TextAlign.right,
+            style: pw.TextStyle(font: boldFont, fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.black),
+          ),
+        ),
+      ],
     );
   }
 
   /// Direct printing / PDF preview
   static Future<void> printOrShare(TransactionModel txn, String staffName) async {
-    final htmlString = generateHtml(txn, staffName);
+    final pdfBytes = await generatePdf(txn, staffName);
     await Printing.layoutPdf(
-      onLayout: (format) async => await Printing.convertHtml(
-        format: format,
-        html: htmlString,
-      ),
+      onLayout: (format) async => pdfBytes,
       name: '${txn.serialNumber ?? "doc"}.pdf',
     );
   }

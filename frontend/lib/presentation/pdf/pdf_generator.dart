@@ -20,6 +20,7 @@ class PdfGenerator {
     final amountFormatted = formatINR(txn.amount);
     final amountInWords = amountToWords(txn.amount);
     final formattedDate = formatDateTime(txn.createdAt);
+    final maroonColor = PdfColor.fromHex('#721c24');
 
     pw.Font mainFont;
     pw.Font boldFont;
@@ -45,7 +46,7 @@ class PdfGenerator {
         build: (pw.Context context) {
           return pw.Container(
             decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: PdfColors.maroon900, width: 2),
+              border: pw.Border.all(color: maroonColor, width: 2),
               borderRadius: pw.BorderRadius.circular(10),
             ),
             padding: const pw.EdgeInsets.all(16),
@@ -60,7 +61,7 @@ class PdfGenerator {
                       font: boldFont,
                       fontSize: 18,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.maroon900,
+                      color: maroonColor,
                     ),
                   ),
                 ),
@@ -76,7 +77,7 @@ class PdfGenerator {
                   ),
                 ),
                 pw.SizedBox(height: 10),
-                pw.Divider(color: PdfColors.maroon900, thickness: 1.5),
+                pw.Divider(color: maroonColor, thickness: 1.5),
                 pw.SizedBox(height: 8),
 
                 // Serial & Date
@@ -121,7 +122,7 @@ class PdfGenerator {
                 pw.Container(
                   decoration: pw.BoxDecoration(
                     color: PdfColors.amber50,
-                    border: pw.Border.all(color: PdfColors.maroon900, style: pw.BorderStyle.dashed),
+                    border: pw.Border.all(color: maroonColor, style: pw.BorderStyle.dashed),
                     borderRadius: pw.BorderRadius.circular(8),
                   ),
                   padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -133,7 +134,7 @@ class PdfGenerator {
                           font: boldFont,
                           fontSize: 22,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.maroon900,
+                          color: maroonColor,
                         ),
                       ),
                       pw.SizedBox(height: 2),

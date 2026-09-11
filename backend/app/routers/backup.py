@@ -310,7 +310,7 @@ async def import_backup(payload: dict, db: AsyncSession = Depends(get_db)):
 
     for s in payload["staff"]:
         existing = await db.execute(select(Staff).where(Staff.id == s["id"]))
-        if not existing.scalar_one_or_none():
+        if not existing.scalars().first():
             db.add(Staff(
                 id=s["id"], name=s["name"],
                 is_active=s.get("is_active", True),
